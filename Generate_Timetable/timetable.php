@@ -420,6 +420,28 @@ if ($current_class_config['has_shifts']) {
             font-style: italic;
             font-size: 14px;
         }
+
+        .no-staff-checkbox-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .no-staff-checkbox-wrap input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+
+        .no-staff-checkbox-wrap label {
+            font-size: 11px;
+            color: #6b7280;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
         
         /* Visual separator between shifts */
         .subjects-table th:nth-child(4),
@@ -857,8 +879,47 @@ if ($current_class_config['has_shifts']) {
             updateStaffDropdowns();
         }
         
+        // Toggle No-Staff-Required state for a subject row
+        function toggleNoStaff(subjectId, hasShifts) {
+            const cb = document.getElementById('no-staff-cb-' + subjectId);
+            const noStaff = cb.checked;
+
+            // All staff containers for this subject
+            const containers = document.querySelectorAll('.staff-toggle-' + subjectId);
+            containers.forEach(function(el) {
+                el.style.display = noStaff ? 'none' : '';
+            });
+
+            // All 'No Staff Required' placeholders for this subject
+            const placeholders = document.querySelectorAll('.no-staff-placeholder-' + subjectId);
+            placeholders.forEach(function(el) {
+                el.style.display = noStaff ? '' : 'none';
+            });
+
+            // Disable/enable required on selects inside those containers
+            containers.forEach(function(el) {
+                el.querySelectorAll('select.staff-select, input[type="number"].hours-input').forEach(function(inp) {
+                    if (noStaff) {
+                        inp.removeAttribute('required');
+                    } else {
+                        // Only add required back for staff selects (hours always have one)
+                        if (inp.tagName === 'SELECT') inp.setAttribute('required', 'required');
+                    }
+                });
+            });
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Apply checkbox state for all subjects on load
+            document.querySelectorAll('.no-staff-cb').forEach(function(cb) {
+                const subjectId = cb.dataset.subjectId;
+                const hasShifts = cb.dataset.hasShifts === '1';
+                if (cb.checked) {
+                    toggleNoStaff(subjectId, hasShifts);
+                }
+            });
+
             // Initialize both original and current allocations from pre-selected values
             // originalPageAllocations = what was loaded from session (used to subtract from base)
             // currentAllocations = current state (initially same as original)
@@ -1403,7 +1464,25 @@ if ($current_class_config['has_shifts']) {
                 <tbody>
                     <?php foreach ($subjects as $subject): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($subject['title']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($subject['title']); ?>
+                            <?php
+                            // Default: Common and Allied = no staff needed (checked)
+                            $default_no_staff = in_array($subject['type'], ['Common', 'Allied']);
+                            $cb_state = $default_no_staff ? 'checked' : '';
+                            $has_shifts_int = $current_class_config['has_shifts'] ? 1 : 0;
+                            ?>
+                            <div class="no-staff-checkbox-wrap">
+                                <input type="checkbox" 
+                                       id="no-staff-cb-<?php echo $subject['id']; ?>"
+                                       class="no-staff-cb"
+                                       data-subject-id="<?php echo $subject['id']; ?>"
+                                       data-has-shifts="<?php echo $has_shifts_int; ?>"
+                                       <?php echo $cb_state; ?>
+                                       onchange="toggleNoStaff(<?php echo $subject['id']; ?>, <?php echo $current_class_config['has_shifts'] ? 'true' : 'false'; ?>)">
+                                <label for="no-staff-cb-<?php echo $subject['id']; ?>">No Staff Required</label>
+                            </div>
+                        </td>
                         <td>
                             <span class="type-badge type-<?php echo strtolower($subject['type']); ?>">
                                 <?php echo htmlspecialchars($subject['type']); ?>
@@ -1437,6 +1516,7 @@ if ($current_class_config['has_shifts']) {
                             </td>
                             <!-- Shift 1 Staff -->
                             <td>
+                                <div class="staff-toggle-<?php echo $subject['id']; ?>">
                                 <div class="staff-allocation-container" id="staff-container-shift1-<?php echo $subject['id']; ?>">
                                     <div class="staff-row">
                                         <?php 
@@ -1464,6 +1544,8 @@ if ($current_class_config['has_shifts']) {
                                         <button type="button" class="add-staff-btn" onclick="addStaffAllocation(<?php echo $subject['id']; ?>, 'shift1')">+ Add Staff</button>
                                     </div>
                                 </div>
+                                </div>
+                                <div class="no-staff-placeholder-<?php echo $subject['id']; ?> no-staff-required" style="display:none;">No Staff Required</div>
                             </td>
                             <!-- Hours for Shift 2 -->
                             <td>
@@ -1484,6 +1566,7 @@ if ($current_class_config['has_shifts']) {
                             </td>
                             <!-- Shift 2 Staff -->
                             <td>
+                                <div class="staff-toggle-<?php echo $subject['id']; ?>">
                                 <div class="staff-allocation-container" id="staff-container-shift2-<?php echo $subject['id']; ?>">
                                     <div class="staff-row">
                                         <?php 
@@ -1511,6 +1594,8 @@ if ($current_class_config['has_shifts']) {
                                         <button type="button" class="add-staff-btn" onclick="addStaffAllocation(<?php echo $subject['id']; ?>, 'shift2')">+ Add Staff</button>
                                     </div>
                                 </div>
+                                </div>
+                                <div class="no-staff-placeholder-<?php echo $subject['id']; ?> no-staff-required" style="display:none;">No Staff Required</div>
                             </td>
                             <?php else: ?>
                             <!-- Single hours and staff for M.Sc -->
@@ -1557,6 +1642,7 @@ if ($current_class_config['has_shifts']) {
                                 <?php endif; ?>
                             </td>
                             <td>
+                                <div class="staff-toggle-<?php echo $subject['id']; ?>">
                                 <div class="staff-allocation-container" id="staff-container-<?php echo $subject['id']; ?>">
                                     <div class="staff-row">
                                         <?php 
@@ -1622,6 +1708,8 @@ if ($current_class_config['has_shifts']) {
                                     }
                                     ?>
                                 </div>
+                                </div>
+                                <div class="no-staff-placeholder-<?php echo $subject['id']; ?> no-staff-required" style="display:none;">No Staff Required</div>
                             </td>
                             <?php endif; ?>
                         <?php else: ?>
