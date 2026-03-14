@@ -428,6 +428,83 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     // ============================================================
+    // STEP 0.5: STRICT ENGLISH PLACEMENT — I B.Sc & II B.Sc (odd semester)
+    // These slots are ABSOLUTE and must never change on refresh.
+    // Placed BEFORE labs so nothing can ever take these slots.
+    //
+    // I B.Sc (sem 1):
+    //   Shift 1: D1-H4, D2-H3, D3-H4, D6-H3
+    //   Shift 2: D1-H1, D2-H2, D4-H2, D6-H2
+    //
+    // II B.Sc (sem 3):
+    //   Shift 1: D1-H2, D2-H1, D3-H2, D4-H1
+    //   Shift 2: D2-H4, D4-H4, D5-H3, D6-H4
+    // ============================================================
+    $english_subject_placed = false;
+    if ($semester === 1 || $semester === 3) { // Odd semesters only — even semester slots to be configured later
+        // Find English subject
+        $english_sub = null;
+        foreach ($subjects as $sub) {
+            if ($sub['type'] === 'Common' && stripos($sub['title'], 'english') !== false) {
+                $english_sub = $sub;
+                break;
+            }
+        }
+
+        if ($english_sub !== null) {
+            // Define strict slots by semester and shift
+            if ($semester === 1) {
+                // I B.Sc
+                if ($shift_group === 'shift1') {
+                    $english_strict_slots = [
+                        ['I DAY', 'IV HOUR'],
+                        ['II DAY', 'III HOUR'],
+                        ['III DAY', 'IV HOUR'],
+                        ['VI DAY', 'III HOUR'],
+                    ];
+                } else { // shift2
+                    $english_strict_slots = [
+                        ['I DAY', 'I HOUR'],
+                        ['II DAY', 'II HOUR'],
+                        ['IV DAY', 'II HOUR'],
+                        ['VI DAY', 'II HOUR'],
+                    ];
+                }
+            } else {
+                // II B.Sc (semester 3)
+                if ($shift_group === 'shift1') {
+                    $english_strict_slots = [
+                        ['I DAY', 'II HOUR'],
+                        ['II DAY', 'I HOUR'],
+                        ['III DAY', 'II HOUR'],
+                        ['IV DAY', 'I HOUR'],
+                    ];
+                } else { // shift2
+                    $english_strict_slots = [
+                        ['II DAY', 'IV HOUR'],
+                        ['IV DAY', 'IV HOUR'],
+                        ['V DAY', 'III HOUR'],
+                        ['VI DAY', 'IV HOUR'],
+                    ];
+                }
+            }
+
+            foreach ($english_strict_slots as $slot) {
+                $e_day = $slot[0];
+                $e_hour = $slot[1];
+                $key = $e_day . '_' . $e_hour;
+                $timetable[$e_day][$e_hour] = $english_sub;
+                $used_slots[$key] = true;
+                if (isset($english_sub['staff_id'])) {
+                    markStaffOccupied($english_sub['staff_id'], $e_day, $e_hour);
+                }
+            }
+            $remaining_hours[$english_sub['id']] -= count($english_strict_slots);
+            $english_subject_placed = true;
+        }
+    }
+
+    // ============================================================
     // STEP 1: NME — always Days 1-3, Hour 4 (III B.Sc only)
     // ============================================================
     if ($semester >= 5 && $semester <= 6) {
@@ -668,6 +745,11 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     foreach ($fixed_subjects as $fixed_sub) {
         $sub_type = $fixed_sub['type'];
         $title_lower = strtolower($fixed_sub['title']);
+
+        // Skip English for I B.Sc — already strictly placed in STEP 0.5
+        if ($english_subject_placed && stripos($title_lower, 'english') !== false) {
+            continue;
+        }
 
         if ($sub_type === 'Allied') {
             $pref_map = $fixed_preferred['Allied'][$semester] ?? null;
