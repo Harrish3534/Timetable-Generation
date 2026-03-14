@@ -1,6 +1,11 @@
-﻿<?php
+<?php
 require_once '../Config/config.php';
 checkLogin();
+
+// Always serve fresh data - no browser caching
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 $conn = getConnection();
 
@@ -59,6 +64,12 @@ $result = $conn->query("SELECT * FROM classes ORDER BY
         </a>
         <a href="../Generate_Timetable/redirect_timetable.php" class="tab">
             <span class="tab-icon">📅</span> Class Timetable
+        </a>
+        <a href="../Generate_Timetable/generated_timetable_view.php" class="tab">
+            <span class="tab-icon">📊</span> Generated Timetable
+        </a>
+        <a href="../SavedTimetable/saved_timetable.php" class="tab">
+            <span class="tab-icon">💾</span> Saved Timetables
         </a>
     </div>
 

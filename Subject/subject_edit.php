@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../Config/config.php';
 checkLogin();
 
@@ -18,6 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt->bind_param("ssisssi", $title, $sub_code, $hours_per_week, $type, $semester, $program, $id);
 
     if ($stmt->execute()) {
+        // Clear session-cached hours for this subject so timetable shows the updated value
+        if (isset($_SESSION['hours_changes'])) {
+            unset($_SESSION['hours_changes']['hours_' . $id]);
+            unset($_SESSION['hours_changes']['hours_shift1_' . $id]);
+            unset($_SESSION['hours_changes']['hours_shift2_' . $id]);
+        }
         header("Location: subject.php?type=$program&semester=$semester");
         exit();
     } else {
@@ -94,6 +100,12 @@ $subject = $result->fetch_assoc();
         </a>
         <a href="../Generate_Timetable/redirect_timetable.php" class="tab">
             <span class="tab-icon">📅</span> Class Timetable
+        </a>
+        <a href="../Generate_Timetable/generated_timetable_view.php" class="tab">
+            <span class="tab-icon">📊</span> Generated Timetable
+        </a>
+        <a href="../SavedTimetable/saved_timetable.php" class="tab">
+            <span class="tab-icon">💾</span> Saved Timetables
         </a>
     </div>
 

@@ -59,6 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <a href="../Generate_Timetable/redirect_timetable.php" class="tab">
             <span class="tab-icon">📅</span> Class Timetable
         </a>
+        <a href="../Generate_Timetable/generated_timetable_view.php" class="tab">
+            <span class="tab-icon">📊</span> Generated Timetable
+        </a>
+        <a href="../SavedTimetable/saved_timetable.php" class="tab">
+            <span class="tab-icon">💾</span> Saved Timetables
+        </a>
     </div>
 
     <div class="content">

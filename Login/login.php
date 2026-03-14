@@ -1,37 +1,35 @@
 <?php
 require_once '../Config/config.php';
+$conn = getConnection();
 
-$email = '';
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = $_POST['email'];
-    $password = $_POST['password'];
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    $conn = getConnection();
-
-    $stmt = $conn->prepare("SELECT id, name, password FROM users WHERE email = ? OR phone = ?");
-    $stmt->bind_param("ss", $email, $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-
-        if (password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_name'] = $user['name'];
-            header("Location: ../Staff/staff.php");
-            exit();
-        } else {
-            $error = "Invalid password!";
-        }
+    if (empty($username) || empty($password)) {
+        $error = "Please enter both username and password.";
     } else {
-        $error = "User not found!";
-    }
+        $stmt = $conn->prepare("SELECT id, username, password FROM users WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    $stmt->close();
-    $conn->close();
+        if ($user = $result->fetch_assoc()) {
+            if (password_verify($password, $user['password'])) {
+                $_SESSION['user_id']   = $user['id'];
+                $_SESSION['user_name'] = $user['username'];
+                header("Location: ../Staff/staff.php");
+                exit();
+            } else {
+                $error = "Invalid username or password!";
+            }
+        } else {
+            $error = "Invalid username or password!";
+        }
+        $stmt->close();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -66,9 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <h1>Staff Login</h1>
             <form action="login.php" method="POST">
                 <div class="form-group">
-                    <label for="email">Email or Phone</label>
-                    <input type="text" id="email" name="email" placeholder="Enter email or phone"
-                        value="<?php echo htmlspecialchars($email); ?>" required>
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username"
+                        value="<?php echo htmlspecialchars($username ?? ''); ?>" required>
                 </div>
 
                 <div class="form-group password-group">
@@ -85,10 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php endif; ?>
 
                 <button type="submit" class="btn btn-primary">Login</button>
-
-                <p class="text-center">
-                    <a href="../CreateAccount/createacc.php">Don't have an account? Sign Up</a>
-                </p>
             </form>
         </div>
     </div>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../Config/config.php';
 checkLogin();
 
@@ -76,9 +76,46 @@ foreach ($timetables as $tt_data) {
     }
 }
 
-// Sort staff by designation hierarchy, then by name
+// Sort staff by custom predefined list, then designation hierarchy, then by name
 uksort($staff_schedules, function ($a, $b) use ($staff_info) {
-    // Define designation priority
+    $custom_order = [
+        'robert' => 1,
+        'chitra' => 2,
+        'devapriya' => 3,
+        'saraswathi' => 4,
+        'malathi' => 5,
+        'balamurugan' => 6,
+        'buvaneshwari' => 7,
+        'mahendran' => 8,
+        'yuvaraj' => 9,
+        'rajasekar' => 10,
+        'rathika' => 11,
+        'anbazhagan' => 12
+    ];
+    
+    $name_a = strtolower($staff_info[$a]['name']);
+    $priority_a = 99;
+    foreach ($custom_order as $keyword => $rank) {
+        if (strpos($name_a, $keyword) !== false) {
+            $priority_a = $rank;
+            break;
+        }
+    }
+
+    $name_b = strtolower($staff_info[$b]['name']);
+    $priority_b = 99;
+    foreach ($custom_order as $keyword => $rank) {
+        if (strpos($name_b, $keyword) !== false) {
+            $priority_b = $rank;
+            break;
+        }
+    }
+
+    if ($priority_a != $priority_b) {
+        return $priority_a - $priority_b;
+    }
+
+    // Define designation priority fallback
     $designation_order = [
         'Associate Professor & Head' => 1,
         'Associate Professor' => 2,
@@ -90,12 +127,12 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
     $designation_b = $staff_info[$b]['designation'];
 
     // Get priority for each designation (default to 99 for unknown)
-    $priority_a = isset($designation_order[$designation_a]) ? $designation_order[$designation_a] : 99;
-    $priority_b = isset($designation_order[$designation_b]) ? $designation_order[$designation_b] : 99;
+    $d_priority_a = isset($designation_order[$designation_a]) ? $designation_order[$designation_a] : 99;
+    $d_priority_b = isset($designation_order[$designation_b]) ? $designation_order[$designation_b] : 99;
 
-    // First sort by designation priority
-    if ($priority_a != $priority_b) {
-        return $priority_a - $priority_b;
+    // Sort by designation priority if both have the same custom rank (e.g. 99)
+    if ($d_priority_a != $d_priority_b) {
+        return $d_priority_a - $d_priority_b;
     }
 
     // If same designation, sort by name
@@ -168,6 +205,9 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
         <a href="redirect_timetable.php" class="tab active">
             <span class="tab-icon">📅</span> Class Timetable
         </a>
+        <a href="../SavedTimetable/saved_timetable.php" class="tab">
+            <span class="tab-icon">💾</span> Saved Timetables
+        </a>
     </div>
 
     <div class="content">
@@ -184,7 +224,7 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
                 <div class="timetable-title">
                     <h2>Government Arts College (Autonomous), Coimbatore-18</h2>
                     <h3>PG & Research Department of Computer Science</h3>
-                    <p>Time Table 2025-26
+                    <p>Time Table
                         <?php echo ucfirst($semester_filter); ?> Semester
                     </p>
                     <p><strong>Staff:

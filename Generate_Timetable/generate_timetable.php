@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../Config/config.php';
 checkLogin();
 
@@ -40,6 +40,8 @@ function getShortName($title, $type, $semester = null)
         return 'ALLIED';
     if ($type === 'NME')
         return 'NME';
+    if ($type === 'Project')
+        return 'PROJ';
 
     $title_lower = strtolower($title);
 
@@ -85,7 +87,8 @@ function getShortName($title, $type, $semester = null)
         'english' => 'ENGLISH',
         'naan mudhalvan' => 'NM',
         'elective' => 'ELECTIVE',
-        'project viva voce' => 'PROJECT',
+        'project viva voce' => 'PROJ',
+        'project & viva voce' => 'PROJ',
     ];
 
     if ($type === 'Lab') {
@@ -142,6 +145,34 @@ function markStaffOccupied($staff_id, $day, $hour)
     $staff_schedule[$key][$staff_id] = true;
 }
 
+/**
+ * Count how many timetable slots on $day already belong to $staff_id.
+ */
+function getStaffHoursOnDay(array $timetable, $staff_id, string $day): int
+{
+    $count = 0;
+    foreach ($timetable[$day] as $hour => $slot) {
+        if ($slot && isset($slot['staff_id']) && $slot['staff_id'] == $staff_id) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+/**
+ * Return true if $staff_id already has a Lab slot on $day.
+ */
+function staffHasLabOnDay(array $timetable, $staff_id, string $day): bool
+{
+    foreach ($timetable[$day] as $hour => $slot) {
+        if ($slot && isset($slot['staff_id']) && $slot['staff_id'] == $staff_id
+        && isset($slot['type']) && $slot['type'] === 'Lab') {
+            return true;
+        }
+    }
+    return false;
+}
+
 function isLabSlotAvailable($day, $hour, $group)
 {
     global $lab_schedule;
@@ -179,7 +210,8 @@ function countConsecutiveOnDay($timetable, $day, $subject_id)
         if (isset($timetable[$day][$hour]) && $timetable[$day][$hour] && $timetable[$day][$hour]['id'] === $subject_id) {
             $current_consecutive++;
             $max_consecutive = max($max_consecutive, $current_consecutive);
-        } else {
+        }
+        else {
             $current_consecutive = 0;
         }
     }
@@ -195,8 +227,7 @@ function wouldViolateConsecutive($timetable, $day, $hour, $subject_id)
     $temp_timetable[$day][$hour] = ['id' => $subject_id];
 
     $consecutive = countConsecutiveOnDay($temp_timetable, $day, $subject_id);
-
-    return $consecutive > 2;
+    return $consecutive > 1;
 }
 
 function hasGaps($timetable, $days, $hours, $semester)
@@ -216,21 +247,47 @@ function hasGaps($timetable, $days, $hours, $semester)
     return false;
 }
 
-// Generate timetable for a single class with multiple attempts
-function generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, $max_attempts = 200)
+// Generate timetable for a single class with multiple attempts.
+// Returns a fully gap-free timetable, or null if none found within the limit.
+function generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, $max_attempts = 300)
 {
     global $staff_schedule, $lab_schedule;
 
-    $best_timetable = null;
-    $min_gaps = PHP_INT_MAX;
+    $start_time = time();
+    $max_time_per_class = 8; // allow up to 8 seconds per class
+
+    // Resolve class index once
+    $class_index = 0;
+    if (isset($_SESSION['current_class_index_map'][$class['id']])) {
+        $class_index = $_SESSION['current_class_index_map'][$class['id']];
+    }
+    else {
+        $class_sequence = [
+            ['pattern' => 'I B.Sc%'],
+            ['pattern' => 'II B.Sc%'],
+            ['pattern' => 'III B.Sc%'],
+            ['pattern' => 'I M.Sc%'],
+            ['pattern' => 'II M.Sc%'],
+        ];
+        foreach ($class_sequence as $idx => $seq) {
+            $pattern = str_replace('%', '', $seq['pattern']);
+            if (strpos($class['name'], $pattern) === 0) {
+                $class_index = $idx;
+                break;
+            }
+        }
+    }
+
+    // Save original global state before any attempt
+    $initial_staff_schedule = $staff_schedule;
+    $initial_lab_schedule   = $lab_schedule;
 
     for ($attempt = 0; $attempt < $max_attempts; $attempt++) {
-        // Save global state
-        $saved_staff_schedule = $staff_schedule;
-        $saved_lab_schedule = $lab_schedule;
+        // Reset global state to initial for each attempt
+        $staff_schedule = $initial_staff_schedule;
+        $lab_schedule   = $initial_lab_schedule;
 
-        // Try to generate a timetable
-        $result = generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group);
+        $result = generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group, $class_index);
 
         // Check for gaps
         $gap_count = 0;
@@ -244,26 +301,24 @@ function generateTimetableForClass($class, $subjects, $days, $hours, $semester, 
             }
         }
 
-        // If no gaps, return immediately
+        // Only accept gap-free results
         if ($gap_count === 0) {
             return $result['timetable'];
         }
 
-        // Track best attempt
-        if ($gap_count < $min_gaps) {
-            $min_gaps = $gap_count;
-            $best_timetable = $result['timetable'];
+        // Break early if taking too long
+        if (time() - $start_time >= $max_time_per_class) {
+            break;
         }
-
-        // Restore global state for next attempt
-        $staff_schedule = $saved_staff_schedule;
-        $lab_schedule = $saved_lab_schedule;
     }
 
-    return $best_timetable;
+    // Could not find a gap-free arrangement — restore original state and return null
+    $staff_schedule = $initial_staff_schedule;
+    $lab_schedule   = $initial_lab_schedule;
+    return null;
 }
 
-function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group)
+function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group, $class_index)
 {
     global $staff_schedule, $lab_schedule;
 
@@ -289,7 +344,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     $labs_3hr = [];
     $labs_2hr = [];
     $nme_subjects = [];
-    $fixed_subjects = [];  // Tamil (Common), English (Common), Allied — NEVER shuffled
+    $fixed_subjects = []; // Tamil (Common), English (Common), Allied — NEVER shuffled
     $regular_subjects = [];
 
     foreach ($subjects as $subject) {
@@ -301,12 +356,15 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 $labs_3hr[] = $subject;
             elseif ($hrs == 2)
                 $labs_2hr[] = $subject;
-        } elseif ($subject['type'] === 'NME' || ($semester >= 5 && $semester <= 6 && stripos($subject['title'], 'elective') !== false)) {
+        }
+        elseif ($subject['type'] === 'NME' || ($semester >= 5 && $semester <= 6 && stripos($subject['title'], 'elective') !== false)) {
             $nme_subjects[] = $subject;
-        } elseif ($subject['type'] === 'Common' || $subject['type'] === 'Allied') {
+        }
+        elseif ($subject['type'] === 'Common' || $subject['type'] === 'Allied') {
             // Fixed subjects: Tamil, English (Common) and Allied — placed at fixed positions
             $fixed_subjects[] = $subject;
-        } else {
+        }
+        else {
             $regular_subjects[] = $subject;
         }
     }
@@ -318,9 +376,56 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     shuffle($regular_subjects);
 
     // Labs use $days (fixed order) so common subjects always land same slots each regeneration
-    $lab_days_order = $days;       // fixed order for lab placement
+    $lab_days_order = $days; // fixed order for lab placement
     $shuffled_days = $days;
-    shuffle($shuffled_days);       // core subjects still vary
+    shuffle($shuffled_days); // core subjects still vary
+
+    // ============================================================
+    // STEP 0.5: PRE-FILL MANUAL ALLOCATIONS
+    // ============================================================
+    if (isset($_SESSION['manual_allocations'][$class_index][$shift_group])) {
+        foreach ($_SESSION['manual_allocations'][$class_index][$shift_group] as $slot => $alloc) {
+            $day = $alloc['day'];
+            $hour = $alloc['hour'];
+            $subject_id = $alloc['subject_id'];
+
+            // Find the subject based on the manual allocation's base ID and match to staff_index if it was saved
+            $manual_subject = null;
+            $manual_staff_index = isset($alloc['staff_index']) ? $alloc['staff_index'] : null;
+
+            foreach ($subjects as $s) {
+                // If the manual allocation specified a staff_index snippet, use the exact ID match
+                // Otherwise fallback to base_id matching
+                if ($manual_staff_index !== null) {
+                    if ($s['id'] === $subject_id . '_' . $manual_staff_index) {
+                        $manual_subject = $s;
+                        break;
+                    }
+                }
+                else {
+                    if ($s['base_id'] == $subject_id) {
+                        $manual_subject = $s;
+                        break;
+                    }
+                }
+            }
+
+            if ($manual_subject !== null) {
+                $key = $day . '_' . $hour;
+                $timetable[$day][$hour] = $manual_subject;
+                $used_slots[$key] = true;
+
+                if (isset($manual_subject['staff_id'])) {
+                    markStaffOccupied($manual_subject['staff_id'], $day, $hour);
+                }
+                if ($manual_subject['type'] === 'Lab') {
+                    markLabSlotOccupied($day, $hour, $shift_group);
+                    $days_with_labs[$day] = $manual_subject['id']; // Register lab day
+                }
+                $remaining_hours[$manual_subject['id']]--;
+            }
+        }
+    }
 
     // ============================================================
     // STEP 1: NME — always Days 1-3, Hour 4 (III B.Sc only)
@@ -332,12 +437,14 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
             $used_slots[$day . '_' . $nme_hour] = true;
         if (count($nme_subjects) > 0) {
             $nme_subject = $nme_subjects[0];
-            foreach ($nme_days as $day) {
-                $timetable[$day][$nme_hour] = $nme_subject;
-                if (isset($nme_subject['staff_id']))
-                    markStaffOccupied($nme_subject['staff_id'], $day, $nme_hour);
+            if ($remaining_hours[$nme_subject['id']] > 0) {
+                foreach ($nme_days as $day) {
+                    $timetable[$day][$nme_hour] = $nme_subject;
+                    if (isset($nme_subject['staff_id']))
+                        markStaffOccupied($nme_subject['staff_id'], $day, $nme_hour);
+                }
+                $remaining_hours[$nme_subject['id']] -= 3;
             }
-            $remaining_hours[$nme_subject['id']] -= 3;
         }
     }
 
@@ -347,6 +454,14 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     // are reserved first, allowing common subjects to find the right
     // remaining slots as shown in the reference timetable.
     // ============================================================
+    // 2-hr preferred sets: IV-V first (end of day preferred)
+    $possible_2hr_sets_preferred = [
+        ['IV HOUR', 'V HOUR'],
+        ['III HOUR', 'IV HOUR'],
+        ['II HOUR', 'III HOUR'],
+        ['I HOUR', 'II HOUR'],
+    ];
+    // For 4-hr split: each half is 2 consecutive hours
     $possible_2hr_sets = [
         ['I HOUR', 'II HOUR'],
         ['II HOUR', 'III HOUR'],
@@ -355,6 +470,9 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     ];
 
     foreach ($labs_4hr as $lab) {
+        if ($remaining_hours[$lab['id']] <= 0)
+            continue;
+
         $placed4 = false;
         foreach ($lab_days_order as $day1) {
             if ($placed4)
@@ -429,17 +547,19 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     foreach ($labs_3hr as $lab) {
-        // Try multiple consecutive 3-hour sets so lab can go around fixed common slots
+        if ($remaining_hours[$lab['id']] <= 0)
+            continue;
+
+        // 3-hr labs: first 3 hours preferred, last 3 hours as fallback only
         $possible_3hr_sets = [
-            ['I HOUR', 'II HOUR', 'III HOUR'],
-            ['II HOUR', 'III HOUR', 'IV HOUR'],
-            ['III HOUR', 'IV HOUR', 'V HOUR'],
+            ['I HOUR', 'II HOUR', 'III HOUR'],   // PREFERRED: first 3 hours
+            ['III HOUR', 'IV HOUR', 'V HOUR'],    // FALLBACK: last 3 hours only
         ];
+        $placed_3hr = false;
         foreach ($lab_days_order as $day) {
             if (isset($days_with_labs[$day]))
                 continue;
 
-            $placed = false;
             foreach ($possible_3hr_sets as $slot_hours) {
                 $can_place = true;
                 foreach ($slot_hours as $h) {
@@ -463,27 +583,29 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                     }
                     $days_with_labs[$day] = $lab['id'];
                     $remaining_hours[$lab['id']] -= 3;
-                    $placed = true;
-                    break;
+                    $placed_3hr = true;
+                    break 2; // break slot_hours loop AND day loop
                 }
             }
-            if ($placed)
-                break;
         }
     }
 
     foreach ($labs_2hr as $lab) {
+        if ($remaining_hours[$lab['id']] <= 0)
+            continue;
+
         $target_days = $lab_days_order;
         if ($semester >= 5 && $semester <= 6) {
             $target_days = array_intersect($lab_days_order, ['IV DAY', 'V DAY', 'VI DAY']);
         }
 
+        $placed_2hr = false;
         foreach ($target_days as $day) {
             if (isset($days_with_labs[$day]))
                 continue;
 
-            $placed = false;
-            foreach ($possible_2hr_sets as $slot_hours) {
+            // Prefer IV-V (end of day) for 2-hr labs
+            foreach ($possible_2hr_sets_preferred as $slot_hours) {
                 $can_place = true;
                 foreach ($slot_hours as $h) {
                     $key = $day . '_' . $h;
@@ -506,12 +628,10 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                     }
                     $days_with_labs[$day] = $lab['id'];
                     $remaining_hours[$lab['id']] -= 2;
-                    $placed = true;
-                    break;
+                    $placed_2hr = true;
+                    break 2; // break slot_hours AND day
                 }
             }
-            if ($placed)
-                break;
         }
     }
 
@@ -551,17 +671,20 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 
         if ($sub_type === 'Allied') {
             $pref_map = $fixed_preferred['Allied'][$semester] ?? null;
-        } elseif (stripos($title_lower, 'tamil') !== false) {
+        }
+        elseif (stripos($title_lower, 'tamil') !== false) {
             $pref_map = $fixed_preferred['Tamil'][$semester] ?? null;
-        } elseif (stripos($title_lower, 'english') !== false) {
+        }
+        elseif (stripos($title_lower, 'english') !== false) {
             $pref_map = $fixed_preferred['English'][$semester] ?? null;
-        } else {
+        }
+        else {
             $pref_map = null;
         }
 
-        $hours_to_place = $fixed_sub['hours_per_week'];
+        $hours_to_place = $remaining_hours[$fixed_sub['id']];
 
-        foreach ($days as $day) {       // fixed day order — I→VI
+        foreach ($days as $day) { // fixed day order — I→VI
             if ($hours_to_place <= 0)
                 break;
 
@@ -602,6 +725,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     // Place each instance
     foreach ($subject_pool as $subject) {
         $placed = false;
+        $is_staff_subject = isset($subject['staff_id']);
 
         // Try all possible positions
         foreach ($shuffled_days as $day) {
@@ -616,8 +740,19 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 if (isNMEReserved($semester, $day, $hour))
                     continue;
 
-                if (isset($subject['staff_id']) && !isStaffAvailable($subject['staff_id'], $day, $hour)) {
+                if ($is_staff_subject && !isStaffAvailable($subject['staff_id'], $day, $hour)) {
                     continue;
+                }
+
+                // Staff daily load constraints:
+                // 1. Max 3 hours per staff per day.
+                // 2. If staff already has a Lab on this day, skip (lab day is heavy enough).
+                if ($is_staff_subject) {
+                    $hours_today = getStaffHoursOnDay($timetable, $subject['staff_id'], $day);
+                    if ($hours_today >= 3)
+                        continue;
+                    if ($subject['type'] !== 'Lab' && staffHasLabOnDay($timetable, $subject['staff_id'], $day))
+                        continue;
                 }
 
                 if (wouldViolateConsecutive($timetable, $day, $hour, $subject['id'])) {
@@ -626,7 +761,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 
                 $timetable[$day][$hour] = $subject;
                 $used_slots[$key] = true;
-                if (isset($subject['staff_id'])) {
+                if ($is_staff_subject) {
                     markStaffOccupied($subject['staff_id'], $day, $hour);
                 }
                 $remaining_hours[$subject['id']]--;
@@ -659,6 +794,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 
         while ($remaining_hours[$subject_id] > 0) {
             $placed = false;
+            $is_staff_subject_ff = isset($subject['staff_id']);
             foreach ($shuffled_days as $day) {
                 if ($placed)
                     break;
@@ -670,8 +806,15 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         continue;
 
                     // Even in force fill, we must respect staff availability
-                    if (isset($subject['staff_id']) && !isStaffAvailable($subject['staff_id'], $day, $hour)) {
+                    if ($is_staff_subject_ff && !isStaffAvailable($subject['staff_id'], $day, $hour)) {
                         continue;
+                    }
+
+                    // Softer daily cap in force-fill: max 4 hrs (allow timetable to complete)
+                    if ($is_staff_subject_ff) {
+                        $hours_today_ff = getStaffHoursOnDay($timetable, $subject['staff_id'], $day);
+                        if ($hours_today_ff >= 4)
+                            continue;
                     }
 
                     // For Labs, we must check lab slot availability
@@ -718,7 +861,9 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         if (!$subject)
             continue;
 
-        while ($remaining_hours[$subject_id] > 0) {
+        $swap_attempts = 0;
+        while ($remaining_hours[$subject_id] > 0 && $swap_attempts < 50) {
+            $swap_attempts++;
             $swapped = false;
 
             // Identify Empty Slots
@@ -757,7 +902,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                     $occupant = $timetable[$target_day][$target_hour];
 
                     // Don't move NME or fixed (Common/Allied) subjects
-                    if ($occupant['type'] === 'NME' || $occupant['type'] === 'Common' || $occupant['type'] === 'Allied')
+                    if (!$occupant || $occupant['type'] === 'NME' || $occupant['type'] === 'Common' || $occupant['type'] === 'Allied')
                         continue;
 
                     // Now check if Occupant can move to ANY empty slot
@@ -780,20 +925,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         if ($occupant['type'] === 'Lab')
                             markLabSlotOccupied($e_day, $e_hour, $shift_group);
 
-                        // 2. Free up Target Slot (logical, though we overwrite immediately)
-                        // Note: We don't "unmark" the target slot's old staff usage because we are replacing it immediately
-                        // Wait, we MUST unmark occupant from Target Slot to be clean, 
-                        // BUT MarkStaffOccupied adds to array. It doesn't remove. 
-                        // Our system doesn't have "unmark". 
-                        // However, isStaffAvailable checks `!isset`.
-                        // Since we are moving Occupant to E_Day, they are now busy there.
-                        // They WERE busy at Target_Day. We are effectively moving that 'busy-ness'.
-                        // But we can't delete the old key from global array easily without `unmark` function.
-                        // FORTUNATELY: The `generateTimetableForClass` uses a localized global state approach (copies).
-                        // BUT `staff_schedule` is global.
-                        // WE NEED TO MANUALLY UNSET THE OLD KEY FOR THE OCCUPANT?
-                        // `unset($staff_schedule[$target_day.'_'.$target_hour][$occupant['staff_id']])`
-
+                        // 2. Free up Target Slot
                         if (isset($occupant['staff_id'])) {
                             unset($GLOBALS['staff_schedule'][$target_day . '_' . $target_hour][$occupant['staff_id']]);
                         }
@@ -830,11 +962,14 @@ while ($class = $classes->fetch_assoc()) {
     // Determine semester
     if (strpos($class['name'], 'I ') === 0) {
         $semester = $semester_filter == 'odd' ? 1 : 2;
-    } elseif (strpos($class['name'], 'II ') === 0) {
+    }
+    elseif (strpos($class['name'], 'II ') === 0) {
         $semester = $semester_filter == 'odd' ? 3 : 4;
-    } elseif (strpos($class['name'], 'III ') === 0) {
+    }
+    elseif (strpos($class['name'], 'III ') === 0) {
         $semester = $semester_filter == 'odd' ? 5 : 6;
-    } else {
+    }
+    else {
         $semester = 1;
     }
 
@@ -842,12 +977,12 @@ while ($class = $classes->fetch_assoc()) {
     $program = (strpos($class['name'], 'M.Sc') !== false) ? 'PG' : 'UG';
     if ($program === 'PG' || strpos($class['shift'], 'Shift 1') !== false) {
         $shift_group = 'shift1';
-    } else {
+    }
+    else {
         $shift_group = 'shift2';
     }
 
-    // Get subjects
-    $subjects_query = "SELECT * FROM subjects WHERE program = '$program' AND semester = $semester ORDER BY 
+    $subjects_query = "SELECT * FROM subjects WHERE program = '$program' AND semester = $semester AND is_allocated = 1 ORDER BY 
         CASE 
             WHEN type = 'Core' THEN 1
             WHEN type = 'Lab' THEN 2
@@ -865,176 +1000,120 @@ while ($class = $classes->fetch_assoc()) {
             // For B.Sc - check shift-specific keys
             if (strpos($class['shift'], 'Shift 1') !== false) {
                 $shift_key = 'staff_shift1_' . $subject['id'];
-            } elseif (strpos($class['shift'], 'Shift 2') !== false) {
+            }
+            elseif (strpos($class['shift'], 'Shift 2') !== false) {
                 $shift_key = 'staff_shift2_' . $subject['id'];
             }
         }
 
         // Try shift key first, then fallback to standard key
-        $staff_key = $shift_key ? $shift_key : 'staff_' . $subject['id'] . '_' . $class['id'];
+        $base_staff_key = $shift_key ? $shift_key : 'staff_' . $subject['id'] . '_' . $class['id'];
 
-        if (isset($staff_allocations[$staff_key]) && !empty($staff_allocations[$staff_key])) {
-            $staff_id = $staff_allocations[$staff_key];
-            $staff_query = "SELECT name, short_code FROM staff WHERE id = $staff_id";
-            $staff_result = $conn->query($staff_query);
-            if ($staff_result && $staff_row = $staff_result->fetch_assoc()) {
-                $subject['staff_name'] = $staff_row['name'];
-                $subject['staff_code'] = $staff_row['short_code'];
-                $subject['staff_id'] = $staff_id;
+        // Find all staff assigned to this subject (handling split staff)
+        $staff_assigned = [];
+
+        // Check for up to 10 split staff members
+        for ($index = 1; $index <= 10; $index++) {
+            if ($shift_key) {
+                $check_key = $base_staff_key . '_' . $index;
+            }
+            else {
+                $check_key = 'staff_' . $subject['id'] . '_' . $index;
+            }
+
+            // The first staff dropdown is natively named without the _1 suffix
+            if ($index === 1 && !isset($staff_allocations[$check_key]) && isset($staff_allocations[$base_staff_key])) {
+                $check_key = $base_staff_key;
+            }
+
+            if (isset($staff_allocations[$check_key]) && !empty($staff_allocations[$check_key])) {
+                $hours_key = $shift_key ? 'hours_' . $shift_group . '_' . $subject['id'] . '_' . $index : 'hours_' . $subject['id'] . '_' . $index;
+
+                if (isset($_SESSION['hours_changes'][$hours_key])) {
+                    $assigned_hours = intval($_SESSION['hours_changes'][$hours_key]);
+                }
+                else if ($index === 1) {
+                    $base_hours_key = $shift_key ? 'hours_' . $shift_group . '_' . $subject['id'] : 'hours_' . $subject['id'];
+                    $assigned_hours = isset($_SESSION['hours_changes'][$base_hours_key]) ? intval($_SESSION['hours_changes'][$base_hours_key]) : intval($subject['hours_per_week']);
+                }
+                else {
+                    $assigned_hours = 0;
+                }
+
+                $staff_assigned[] = [
+                    'staff_id' => $staff_allocations[$check_key],
+                    'hours' => $assigned_hours,
+                    // Provide staff index natively so split classes don't conflict later
+                    'staff_index' => $index
+                ];
             }
         }
+
+        // Base Subject Short Name
         $subject['short_name'] = getShortName($subject['title'], $subject['type'], $semester);
-        $subjects[] = $subject;
+
+        // If staff were assigned, create split objects for each staff
+        if (!empty($staff_assigned)) {
+            foreach ($staff_assigned as $assignment) {
+                if ($assignment['hours'] <= 0)
+                    continue; // Skip 0 hour assignments
+
+                $split_subject = $subject; // Copy base object
+                $split_subject['hours_per_week'] = $assignment['hours'];
+                $split_subject['staff_index'] = $assignment['staff_index'];
+                $split_subject['base_id'] = $subject['id']; // Track real ID
+                if ($assignment['staff_index'] !== null) {
+                    $split_subject['id'] = $subject['id'] . '_' . $assignment['staff_index']; // Make unique ID for internal tracking
+                }
+
+                $staff_id = $assignment['staff_id'];
+                $staff_query = "SELECT name, short_code FROM staff WHERE id = $staff_id";
+                $staff_result = $conn->query($staff_query);
+                if ($staff_result && $staff_row = $staff_result->fetch_assoc()) {
+                    $split_subject['staff_name'] = $staff_row['name'];
+                    $split_subject['staff_code'] = $staff_row['short_code'];
+                    $split_subject['staff_id'] = $staff_id;
+                }
+                $subjects[] = $split_subject;
+            }
+        }
+        else {
+            // No staff assigned (either unmarked, or marked "No Staff Required")
+            // Make sure these are still pushed into the pool so they appear on the timetable
+            $subject['base_id'] = $subject['id'];
+            $subject['staff_index'] = null;
+            // Name mapping (staff omitted intentionally)
+            $subjects[] = $subject;
+        }
     }
 
-    // Generate timetable with multiple attempts
-    $timetable = generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, 200);
+    // Generate timetable — only returns gap-free result, or null if impossible
+    $timetable = generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, 300);
 
-    // Only add if no gaps (or add anyway if we couldn't find better)
-    if ($timetable && !hasGaps($timetable, $days, $hours, $semester)) {
+    if ($timetable !== null) {
+        // Gap-free result
         $timetables[] = [
-            'class' => $class,
+            'class'    => $class,
             'semester' => $semester,
-            'timetable' => $timetable
+            'timetable'=> $timetable,
         ];
-    } else {
-        // Still add but with warning
+    }
+    else {
+        // No gap-free arrangement found — record with warning flag
         $timetables[] = [
-            'class' => $class,
+            'class'    => $class,
             'semester' => $semester,
-            'timetable' => $timetable,
-            'has_gaps' => true
+            'timetable'=> null,
+            'has_gaps' => true,
         ];
     }
 }
 
-// Store timetables in session for staff timetable view
+// Store timetables in session for view
 $_SESSION['current_timetables'] = $timetables;
 $_SESSION['semester_filter'] = $semester_filter;
-$_SESSION['current_page'] = 'generate_timetable';
-?>
-<!DOCTYPE html>
-<html lang="en">
+$_SESSION['current_page'] = 'generated_timetable_view';
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated Timetable - GAC Timetable</title>
-    <link rel="stylesheet" href="../Assets/css/style.css?v=2.1">
-    <style>
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            .timetable-container {
-                page-break-after: always;
-            }
-        }
-
-        .warning-banner {
-            background-color: #fef3c7;
-            border: 2px solid #f59e0b;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 8px;
-            color: #92400e;
-            font-weight: 600;
-        }
-    </style>
-</head>
-
-<body>
-    <nav class="navbar no-print">
-        <div class="nav-brand">GAC Timetable</div>
-        <div class="nav-user">
-            Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-            <a href="../Logout/logout.php" class="logout-icon">⎋</a>
-        </div>
-    </nav>
-
-    <div class="tabs no-print">
-        <a href="../Staff/staff.php" class="tab">
-            <span class="tab-icon">👥</span> Staff
-        </a>
-        <a href="../Class/class.php" class="tab">
-            <span class="tab-icon">🎓</span> Classes
-        </a>
-        <a href="../Subject/subject.php" class="tab">
-            <span class="tab-icon">📚</span> Subjects
-        </a>
-        <a href="redirect_timetable.php" class="tab active">
-            <span class="tab-icon">📅</span> Class Timetable
-        </a>
-    </div>
-
-    <div class="content">
-        <div class="no-print" style="margin-bottom: 20px; display: flex; gap: 10px;">
-            <button onclick="window.print()" class="btn btn-primary">🖨️ Print Timetables</button>
-            <button onclick="window.location.href='timetable.php?semester=<?php echo $semester_filter; ?>'"
-                class="btn btn-secondary">← Back</button>
-            <button onclick="window.location.reload()" class="btn btn-secondary">🔄 Regenerate</button>
-            <button onclick="window.location.href='staff_timetable.php?semester=<?php echo $semester_filter; ?>'"
-                class="btn btn-secondary">👥 Staff Timetable</button>
-        </div>
-
-        <?php foreach ($timetables as $tt_data): ?>
-            <div class="timetable-container">
-
-                <div class="timetable-title">
-                    <h2>Government Arts College (Autonomous), Coimbatore-18</h2>
-                    <h3>PG & Research Department of Computer Science</h3>
-                    <p>Time Table 2025-26 <?php echo ucfirst($semester_filter); ?> Semester</p>
-                    <p><strong><?php echo htmlspecialchars($tt_data['class']['name']); ?>
-                            (<?php echo htmlspecialchars($tt_data['class']['shift']); ?>)</strong> - Semester
-                        <?php echo $tt_data['semester']; ?>
-                    </p>
-                </div>
-
-                <table class="timetable-table">
-                    <thead>
-                        <tr>
-                            <th class="day-header">DAY/HOUR</th>
-                            <th class="hour-header">I HOUR</th>
-                            <th class="hour-header">II HOUR</th>
-                            <th class="hour-header">III HOUR</th>
-                            <th class="hour-header">IV HOUR</th>
-                            <th class="hour-header">V HOUR</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($days as $day): ?>
-                            <tr>
-                                <td class="day-header"><?php echo $day; ?></td>
-                                <?php foreach ($hours as $hour): ?>
-                                    <td class="subject-cell">
-                                        <?php if (isset($tt_data['timetable'][$day][$hour]) && $tt_data['timetable'][$day][$hour]):
-                                            $subject = $tt_data['timetable'][$day][$hour];
-                                            ?>
-                                            <div class="subject-display">
-                                                <?php echo htmlspecialchars($subject['short_name']); ?>
-                                                <?php if (isset($subject['staff_code'])): ?>
-                                                    (<?php echo htmlspecialchars($subject['staff_code']); ?>)
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php else: ?>
-                                            <div>-</div>
-                                        <?php endif; ?>
-                                    </td>
-                                <?php endforeach; ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <?php if (isset($tt_data['has_gaps']) && $tt_data['has_gaps']): ?>
-                    <div class="warning-banner no-print">
-                        ⚠️ Warning: Some cells cannot be filled because of staff allocation.
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
-    </div>
-</body>
-
-</html>
-<?php $conn->close(); ?>
+// Redirect to the new view page
+header("Location: generated_timetable_view.php");
+exit;
