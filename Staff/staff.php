@@ -35,7 +35,7 @@ $result = $conn->query("SELECT * FROM staff ORDER BY
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Details - GAC Timetable</title>
-    <link rel="stylesheet" href="../Assets/css/style.css?v=2.1">
+    <link rel="stylesheet" href="../Assets/css/style.css?v=1773498759">
 </head>
 
 <body>

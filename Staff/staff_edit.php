@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../Config/config.php';
 checkLogin();
 
@@ -40,7 +40,7 @@ $staff = $result->fetch_assoc();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Staff - GAC Timetable</title>
-    <link rel="stylesheet" href="../Assets/css/style.css?v=2.1">
+    <link rel="stylesheet" href="../Assets/css/style.css?v=1773498759">
 </head>
 
 <body>
@@ -49,28 +49,28 @@ $staff = $result->fetch_assoc();
         <div class="nav-user">
             Welcome,
             <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-            <a href="../Logout/logout.php" class="logout-icon">⎋</a>
+            <a href="../Logout/logout.php" class="logout-icon">?</a>
         </div>
     </nav>
 
     <div class="tabs">
         <a href="staff.php" class="tab active">
-            <span class="tab-icon">👥</span> Staff
+            <span class="tab-icon">??</span> Staff
         </a>
         <a href="../Class/class.php" class="tab">
-            <span class="tab-icon">🎓</span> Classes
+            <span class="tab-icon">??</span> Classes
         </a>
         <a href="../Subject/subject.php" class="tab">
-            <span class="tab-icon">📚</span> Subjects
+            <span class="tab-icon">??</span> Subjects
         </a>
         <a href="../Generate_Timetable/redirect_timetable.php" class="tab">
-            <span class="tab-icon">📅</span> Class Timetable
+            <span class="tab-icon">??</span> Class Timetable
         </a>
         <a href="../Generate_Timetable/generated_timetable_view.php" class="tab">
-            <span class="tab-icon">📊</span> Generated Timetable
+            <span class="tab-icon">??</span> Generated Timetable
         </a>
         <a href="../SavedTimetable/saved_timetable.php" class="tab">
-            <span class="tab-icon">💾</span> Saved Timetables
+            <span class="tab-icon">??</span> Saved Timetables
         </a>
     </div>
 
