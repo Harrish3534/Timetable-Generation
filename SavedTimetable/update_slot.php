@@ -99,36 +99,45 @@ function getShortName($title, $type, $semester = null)
 }
 
 if ($action === 'swap') {
-    // Swap two slots
-    $id_a = intval($_POST['id_a'] ?? 0);
-    $id_b = intval($_POST['id_b'] ?? 0);
-    if (!$id_a || !$id_b) {
+    // Swap slots (supports multi-hour swaps by passing comma-separated lists of IDs)
+    $ids_a_str = $_POST['id_a'] ?? '';
+    $ids_b_str = $_POST['id_b'] ?? '';
+    if (!$ids_a_str || !$ids_b_str) {
         echo json_encode(['success' => false, 'error' => 'Invalid slot IDs']);
         exit;
     }
 
-    $ra = $conn->query("SELECT * FROM saved_timetable_slots WHERE id = $id_a")->fetch_assoc();
-    $rb = $conn->query("SELECT * FROM saved_timetable_slots WHERE id = $id_b")->fetch_assoc();
+    $ids_a = array_filter(array_map('intval', explode(',', $ids_a_str)));
+    $ids_b = array_filter(array_map('intval', explode(',', $ids_b_str)));
 
-    if (!$ra || !$rb) {
-        echo json_encode(['success' => false, 'error' => 'Slot not found']);
+    if (count($ids_a) !== count($ids_b) || empty($ids_a)) {
+        echo json_encode(['success' => false, 'error' => 'Mismatched slot counts for swap']);
         exit;
     }
 
-    // Swap all subject/staff fields
     $fields = ['subject_id', 'subject_title', 'subject_short_name', 'subject_type', 'staff_id', 'staff_name', 'staff_code'];
 
-    $sets_a = [];
-    $sets_b = [];
-    foreach ($fields as $f) {
-        $va = $conn->real_escape_string($rb[$f] ?? '');
-        $vb = $conn->real_escape_string($ra[$f] ?? '');
-        $sets_a[] = "`$f` = " . ($va === '' ? 'NULL' : "'$va'");
-        $sets_b[] = "`$f` = " . ($vb === '' ? 'NULL' : "'$vb'");
+    for ($i = 0; $i < count($ids_a); $i++) {
+        $id_a = $ids_a[$i];
+        $id_b = $ids_b[$i];
+
+        $ra = $conn->query("SELECT * FROM saved_timetable_slots WHERE id = $id_a")->fetch_assoc();
+        $rb = $conn->query("SELECT * FROM saved_timetable_slots WHERE id = $id_b")->fetch_assoc();
+
+        if (!$ra || !$rb) continue;
+
+        $sets_a = [];
+        $sets_b = [];
+        foreach ($fields as $f) {
+            $va = $conn->real_escape_string($rb[$f] ?? '');
+            $vb = $conn->real_escape_string($ra[$f] ?? '');
+            $sets_a[] = "`$f` = " . ($va === '' ? 'NULL' : "'$va'");
+            $sets_b[] = "`$f` = " . ($vb === '' ? 'NULL' : "'$vb'");
+        }
+        
+        $conn->query("UPDATE saved_timetable_slots SET " . implode(', ', $sets_a) . " WHERE id = $id_a");
+        $conn->query("UPDATE saved_timetable_slots SET " . implode(', ', $sets_b) . " WHERE id = $id_b");
     }
-    
-    $conn->query("UPDATE saved_timetable_slots SET " . implode(', ', $sets_a) . " WHERE id = $id_a");
-    $conn->query("UPDATE saved_timetable_slots SET " . implode(', ', $sets_b) . " WHERE id = $id_b");
 
     echo json_encode(['success' => true, 'action' => 'swap']);
 

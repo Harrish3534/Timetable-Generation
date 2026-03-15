@@ -501,19 +501,21 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                                 if ($slot && $slot['subject_type'] === 'Lab' && $slot['subject_id']) {
                                     $span = 1;
                                     $hlst = [$h];
+                                    $all_ids = [$slot ? $slot['id'] : ''];
                                     while ($span + $i < count($hours)) {
                                         $ns = $row_hours[$hours[$i + $span]] ?? null;
                                         if ($ns && $ns['subject_id'] === $slot['subject_id']) {
                                             $hlst[] = $hours[$i + $span];
+                                            $all_ids[] = $ns ? $ns['id'] : '';
                                             $span++;
                                         }
                                         else
                                             break;
                                     }
-                                    $cells[] = ['slot' => $slot, 'colspan' => $span, 'is_lab' => true, 'hours' => implode(',', $hlst)];
+                                    $cells[] = ['slot' => $slot, 'colspan' => $span, 'is_lab' => true, 'hours' => implode(',', $hlst), 'all_ids' => implode(',', $all_ids)];
                                     $i += $span;
                                 } else {
-                                    $cells[] = ['slot' => $slot, 'colspan' => 1, 'is_lab' => false, 'hours' => $h];
+                                    $cells[] = ['slot' => $slot, 'colspan' => 1, 'is_lab' => false, 'hours' => $h, 'all_ids' => $slot ? $slot['id'] : ''];
                                     $i++;
                                 }
                             }
@@ -536,6 +538,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                                     <td colspan="<?php echo $cell['colspan']; ?>" style="border:1px solid #d1d5db; padding:3px;">
                                         <div class="cell-content <?php echo $cell['is_lab'] ? 'lab-cell' : ''; ?> <?php echo $is_empty ? 'cell-empty' : ''; ?>"
                                             data-slot-id="<?php echo $sid; ?>" data-class-id="<?php echo $cid; ?>"
+                                            data-all-slot-ids="<?php echo htmlspecialchars($cell['all_ids']); ?>"
                                             data-semester="<?php echo $class_info[$cid]['semester']; ?>"
                                             data-program="<?php echo strpos($class_info[$cid]['name'], 'M.Sc') !== false ? 'PG' : 'UG'; ?>"
                                             data-day="<?php echo htmlspecialchars($dy); ?>"
@@ -601,6 +604,26 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             <div style="display:flex; gap:10px; justify-content:center;">
                 <button id="clear-confirm-yes" class="btn-save-slot" style="background:#ef4444;">Yes, Clear</button>
                 <button id="clear-confirm-no" class="btn-cancel-modal" style="margin-left:0;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Swap Confirmation Modal -->
+    <div class="modal-overlay-top no-print" id="swap-confirm-modal">
+        <div class="modal" style="max-width:440px; text-align:center;">
+            <div style="font-size:32px; margin-bottom:12px;">🔄</div>
+            <h3 style="color:#2563eb; margin-bottom:10px;">Confirm Swap</h3>
+            <p style="color:#6b7280; font-size:13px; margin-bottom:10px;">You are about to swap the following sets. Do you want to continue?</p>
+            <div style="background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; padding:10px; text-align:left; font-size:13px; margin-bottom:20px;">
+                <strong>Slot 1:</strong><br>
+                <span id="swap-confirm-group-a" style="color:#1f2937;"></span>
+                <hr style="border:0; border-top:1px dashed #9ca3af; margin:8px 0;">
+                <strong>Slot 2:</strong><br>
+                <span id="swap-confirm-group-b" style="color:#1f2937;"></span>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button id="swap-confirm-yes" class="btn-save-slot" style="background:#2563eb;">Yes, Continue</button>
+                <button id="swap-confirm-no" class="btn-cancel-modal" style="margin-left:0;">No, Cancel</button>
             </div>
         </div>
     </div>
@@ -712,7 +735,45 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
         let pendingManualResolve = null; // holds resolve() for the manual-confirm promise
         let pendingClashResolve = null;
         let pendingClearResolve = null;
-        let hasUnsavedChanges = false;
+        let hasUnsavedChanges = <?php echo isset($_GET['changed']) && $_GET['changed'] == '1' ? 'true' : 'false'; ?>;
+
+        function getConsecutiveCells(startEl, reqLen) {
+            const classId = startEl.getAttribute('data-class-id');
+            const day = startEl.getAttribute('data-day');
+            const startHours = startEl.getAttribute('data-hours').split(',');
+            const ALL_HOURS = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
+            const startIndex = ALL_HOURS.indexOf(startHours[0]);
+            
+            if (startIndex + reqLen > ALL_HOURS.length) return null; // Not enough hours left in the day
+            
+            const targetHours = ALL_HOURS.slice(startIndex, startIndex + reqLen);
+            
+            const cells = [];
+            document.querySelectorAll('.cell-content').forEach(c => {
+                if (c.getAttribute('data-class-id') === classId && c.getAttribute('data-day') === day) {
+                    const cHours = c.getAttribute('data-hours').split(',');
+                    if (cHours.some(h => targetHours.includes(h))) {
+                        cells.push(c);
+                    }
+                }
+            });
+            
+            // Validate that gathered cells exactly cover targetHours without spilling over
+            const coveredHours = [];
+            cells.forEach(c => coveredHours.push(...c.getAttribute('data-hours').split(',')));
+            if (coveredHours.length !== reqLen || !coveredHours.every(h => targetHours.includes(h))) {
+                return null; // Spills over or missing hours
+            }
+            
+            // Sort cells by hour chronological order
+            cells.sort((a, b) => {
+                const aIdx = ALL_HOURS.indexOf(a.getAttribute('data-hours').split(',')[0]);
+                const bIdx = ALL_HOURS.indexOf(b.getAttribute('data-hours').split(',')[0]);
+                return aIdx - bIdx;
+            });
+            
+            return cells;
+        }
 
         // Show manual-allocation confirmation dialog. Returns a Promise<bool>.
         function confirmManualSwap() {
@@ -780,6 +841,30 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             }
         });
 
+        let pendingSwapResolve = null;
+        function confirmMultiSwap(groupAHTML, groupBHTML) {
+            return new Promise(resolve => {
+                pendingSwapResolve = resolve;
+                document.getElementById('swap-confirm-group-a').innerHTML = groupAHTML;
+                document.getElementById('swap-confirm-group-b').innerHTML = groupBHTML;
+                document.getElementById('swap-confirm-modal').classList.add('open');
+            });
+        }
+        document.getElementById('swap-confirm-yes').addEventListener('click', () => {
+            document.getElementById('swap-confirm-modal').classList.remove('open');
+            if (pendingSwapResolve) { pendingSwapResolve(true); pendingSwapResolve = null; }
+        });
+        document.getElementById('swap-confirm-no').addEventListener('click', () => {
+            document.getElementById('swap-confirm-modal').classList.remove('open');
+            if (pendingSwapResolve) { pendingSwapResolve(false); pendingSwapResolve = null; }
+        });
+        document.getElementById('swap-confirm-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('open');
+                if (pendingSwapResolve) { pendingSwapResolve(false); pendingSwapResolve = null; }
+            }
+        });
+
         function getStaffClashWarning(elA, elB) {
             const staffIdA = elA.getAttribute('data-staff-id');
             const staffNameA = elA.getAttribute('data-staff-name');
@@ -802,7 +887,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                     if (el.getAttribute('data-day') !== dayB) return;
                     const elHours = el.getAttribute('data-hours').split(',');
                     if (hoursB.some(h => elHours.includes(h))) {
-                        clashMsg = `${staffNameA} is already having hours here (${el.closest('tr').querySelector('.class-cell').textContent.trim()} at ${hoursB.join(', ')}).`;
+                        clashMsg = `${staffNameA} is already having hours here (${el.closest('tr').querySelector('.class-cell').textContent.trim()} on ${dayB} at ${hoursB.join(', ')}).`;
                     }
                 });
             }
@@ -815,7 +900,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                     if (el.getAttribute('data-day') !== dayA) return;
                     const elHours = el.getAttribute('data-hours').split(',');
                     if (hoursA.some(h => elHours.includes(h))) {
-                        clashMsg = `${staffNameB} is already having hours here (${el.closest('tr').querySelector('.class-cell').textContent.trim()} at ${hoursA.join(', ')}).`;
+                        clashMsg = `${staffNameB} is already having hours here (${el.closest('tr').querySelector('.class-cell').textContent.trim()} on ${dayA} at ${hoursA.join(', ')}).`;
                     }
                 });
             }
@@ -915,8 +1000,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             if (mode === 'view') return;
 
             if (mode === 'swap') {
-                // If slot is manually allocated, ask for confirmation first
-                // (Skip if we are just unselecting the currently selected slot A)
+                const hoursLen = el.getAttribute('data-hours').split(',').length;
                 const isUnselectingA = swapSlotA && swapSlotA.el === el;
                 if (isManual && !isUnselectingA) {
                     const confirmed = await confirmManualSwap();
@@ -933,7 +1017,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                         }
                     });
                     el.classList.add('selected-a');
-                    swapSlotA = { el, slotId, classId };
+                    swapSlotA = { el, slotId, classId, hoursLen };
                     
                     // Highlight red for clashes
                     document.querySelectorAll('.cell-content').forEach(e => {
@@ -944,25 +1028,70 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                         }
                     });
 
-                    showToast('First slot selected (yellow). Now click another slot in the same class.');
+                    showToast('First slot selected (' + hoursLen + ' hr). Now click another slot to swap.');
                 } else if (swapSlotA.el === el) {
-                    // Deselect — restore all cells
+                    // Deselect
                     document.querySelectorAll('.cell-content').forEach(e =>
                         e.classList.remove('selected-a', 'selected-b', 'swap-disabled', 'clash-warning'));
                     swapSlotA = null;
                 } else {
-                    // Select B and swap (B is guaranteed same class due to pointer-events:none on others)
-                    const clashMsg = getStaffClashWarning(swapSlotA.el, el);
-                    if (clashMsg) {
-                        const confirmed = await confirmClashSwap(clashMsg);
-                        if (!confirmed) return;
+                    const reqLen = Math.max(swapSlotA.hoursLen, hoursLen);
+                    
+                    const cellsA = getConsecutiveCells(swapSlotA.el, reqLen);
+                    const cellsB = getConsecutiveCells(el, reqLen);
+                    
+                    if (!cellsA || !cellsB) {
+                        showToast('❌ Cannot swap: Need ' + reqLen + ' continuous hours. Invalid selection.');
+                        return;
+                    }
+                    
+                    cellsA.forEach(c => c.classList.add('selected-a'));
+                    cellsB.forEach(c => c.classList.add('selected-b'));
+
+                    let finalClashMsg = null;
+                    for (let i = 0; i < cellsA.length && i < cellsB.length; i++) {
+                        let cMsg = getStaffClashWarning(cellsA[i], cellsB[Math.min(i, cellsB.length-1)]);
+                        if (cMsg) {
+                            finalClashMsg = cMsg; break;
+                        }
                     }
 
-                    el.classList.add('selected-b');
-                    doSwap(swapSlotA.slotId, slotId, swapSlotA.el, el);
-                    // Restore all cells after swap
-                    document.querySelectorAll('.cell-content').forEach(e =>
-                        e.classList.remove('swap-disabled', 'clash-warning'));
+                    if (finalClashMsg) {
+                        const confirmed = await confirmClashSwap(finalClashMsg);
+                        if (!confirmed) {
+                            cellsB.forEach(c => c.classList.remove('selected-b'));
+                            return; 
+                        }
+                    }
+
+                    // For multi-hour swaps (i.e. labs), show a confirmation of what is being swapped
+                    if (reqLen > 1) {
+                        const getGroupDesc = (cells) => {
+                            let items = [];
+                            cells.forEach(c => {
+                                const title = c.getAttribute('title') || 'Empty';
+                                const hrs = c.getAttribute('data-hours');
+                                const day = c.getAttribute('data-day');
+                                items.push(`• <b>${title}</b> on ${day} (${hrs})`);
+                            });
+                            // Deduplicate titles for multi-hour labs so it just shows once
+                            return Array.from(new Set(items)).join('<br>');
+                        };
+                        const confirmed = await confirmMultiSwap(getGroupDesc(cellsA), getGroupDesc(cellsB));
+                        if (!confirmed) {
+                            cellsB.forEach(c => c.classList.remove('selected-b'));
+                            return;
+                        }
+                    }
+
+                    const allIdsA = [];
+                    cellsA.forEach(c => allIdsA.push(...c.getAttribute('data-all-slot-ids').split(',')));
+                    const allIdsB = [];
+                    cellsB.forEach(c => allIdsB.push(...c.getAttribute('data-all-slot-ids').split(',')));
+                    
+                    doSwap(allIdsA, allIdsB, cellsA, cellsB);
+                    
+                    document.querySelectorAll('.cell-content').forEach(e => e.classList.remove('swap-disabled', 'clash-warning'));
                     swapSlotA = null;
                 }
                 return;
@@ -973,44 +1102,21 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             }
         }
 
-        function doSwap(idA, idB, elA, elB) {
+        function doSwap(idsA, idsB, cellsA, cellsB) {
             fetch('update_slot.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=swap&id_a=${idA}&id_b=${idB}`
+                body: `action=swap&id_a=${idsA.join(',')}&id_b=${idsB.join(',')}`
             })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        // Swap the visual content of the two cells
-                        const contentA = elA.innerHTML;
-                        const contentB = elB.innerHTML;
-                        elA.innerHTML = contentB;
-                        elB.innerHTML = contentA;
-
-                        // Swap classes
-                        const wasEmptyA = elA.classList.contains('cell-empty');
-                        const wasEmptyB = elB.classList.contains('cell-empty');
-                        elA.classList.toggle('cell-empty', wasEmptyB);
-                        elB.classList.toggle('cell-empty', wasEmptyA);
-                        elA.classList.remove('selected-a', 'selected-b');
-                        elB.classList.remove('selected-a', 'selected-b');
-                        // Update data attributes of the elements so subsequent swaps work
-                        const dataAttrs = ['data-slot-id', 'data-staff-id', 'data-staff-name', 'data-is-manual'];
-                        const tempAttrs = {};
-                        dataAttrs.forEach(attr => {
-                            tempAttrs[attr] = elA.getAttribute(attr);
-                            elA.setAttribute(attr, elB.getAttribute(attr));
-                            elB.setAttribute(attr, tempAttrs[attr]);
-                        });
-
-                        evaluateAllClashes();
-                        hasUnsavedChanges = true;
-                        showToast('✅ Slots swapped successfully!');
+                        // Reload the page to correctly render any merged cell differences (like colspan changing)
+                        window.location.href = window.location.pathname + "?id=<?php echo $id; ?>&changed=1";
                     } else {
                         showToast('❌ Swap failed: ' + (data.error || 'Unknown error'));
-                        elA.classList.remove('selected-a', 'selected-b');
-                        elB.classList.remove('selected-a', 'selected-b');
+                        cellsA.forEach(c => c.classList.remove('selected-a', 'selected-b'));
+                        cellsB.forEach(c => c.classList.remove('selected-a', 'selected-b'));
                     }
                 })
                 .catch(err => {
