@@ -1553,6 +1553,9 @@ if ($current_class_config['has_shifts']) {
                         if (!label) {
                             label = document.createElement('div');
                             label.className = 'no-staff-label no-staff-required';
+                            label.style.color = '#9ca3af';
+                            label.style.fontStyle = 'italic';
+                            label.style.fontSize = '0.9em';
                             label.textContent = 'No Staff Required';
                             cell.appendChild(label);
                         }
@@ -2286,7 +2289,24 @@ if ($current_class_config['has_shifts']) {
                 <tbody>
                     <?php foreach ($subjects as $subject): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($subject['title']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($subject['title']); ?>
+                            <?php 
+                            $default_no_staff = in_array($subject['type'], ['Common', 'Allied', 'NME', 'NM']);
+                            $cb_state = $default_no_staff ? 'checked' : '';
+                            $has_shifts_int = $current_class_config['has_shifts'] ? 1 : 0;
+                            ?>
+                            <div class="no-staff-checkbox-wrap" style="margin-top: 5px; display: flex; align-items: center;">
+                                <input type="checkbox" 
+                                       id="no-staff-cb-<?php echo $subject['id']; ?>"
+                                       class="no-staff-cb"
+                                       data-subject-id="<?php echo $subject['id']; ?>"
+                                       data-has-shifts="<?php echo $has_shifts_int; ?>"
+                                       <?php echo $cb_state; ?>
+                                       onchange="toggleStaffRequirement(this, <?php echo $subject['id']; ?>, <?php echo $current_class_config['has_shifts'] ? 'true' : 'false'; ?>)">
+                                <label for="no-staff-cb-<?php echo $subject['id']; ?>" style="font-size: 0.85em; color: #4b5563; margin-left: 4px; cursor: pointer;">No Staff Required</label>
+                            </div>
+                        </td>
                         <td>
                             <span class="type-badge type-<?php echo strtolower($subject['type']); ?>">
                                 <?php echo htmlspecialchars($subject['type']); ?>
@@ -2308,15 +2328,41 @@ if ($current_class_config['has_shifts']) {
                                 $current_hours_shift1 = isset($_SESSION['hours_changes'][$hours_key_shift1]) 
                                     ? $_SESSION['hours_changes'][$hours_key_shift1] 
                                     : $subject['hours_per_week'];
+                                
+                                // Calculate manual allocations for Shift 1
+                                $manual_count_shift1 = 0;
+                                if (isset($_SESSION['manual_allocations'][$current_index]['shift1'])) {
+                                    foreach ($_SESSION['manual_allocations'][$current_index]['shift1'] as $alloc) {
+                                        if ($alloc['subject_id'] == $subject['id']) {
+                                            $manual_count_shift1++;
+                                        }
+                                    }
+                                }
+                                $remaining_hours_shift1 = max(0, $current_hours_shift1 - $manual_count_shift1);
                                 ?>
-                                <input type="number" 
-                                       name="<?php echo $hours_key_shift1; ?>" 
-                                       value="<?php echo $current_hours_shift1; ?>" 
-                                       min="1" 
-                                       max="30" 
-                                       class="hours-input" 
-                                       data-shift="shift1"
-                                       required>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="number" 
+                                               name="<?php echo $hours_key_shift1; ?>" 
+                                               value="<?php echo $current_hours_shift1; ?>" 
+                                               min="<?php echo max(1, $manual_count_shift1); ?>" 
+                                               max="30" 
+                                               class="hours-input" 
+                                               data-shift="shift1"
+                                               data-subject-id="<?php echo $subject['id']; ?>"
+                                               required>
+                                        <button type="submit" name="action" value="manual" class="btn-manual"
+                                                onclick="return setManualAllocation(<?php echo $subject['id']; ?>, 'shift1')"
+                                                title="Set Manually">
+                                            Manual <?php echo $manual_count_shift1 > 0 ? "($manual_count_shift1)" : ""; ?>
+                                        </button>
+                                    </div>
+                                    <?php if ($manual_count_shift1 > 0): ?>
+                                        <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                            Remaining for Auto: <strong><?php echo $remaining_hours_shift1; ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <!-- Shift 1 Staff -->
                             <td>
@@ -2355,15 +2401,41 @@ if ($current_class_config['has_shifts']) {
                                 $current_hours_shift2 = isset($_SESSION['hours_changes'][$hours_key_shift2]) 
                                     ? $_SESSION['hours_changes'][$hours_key_shift2] 
                                     : $subject['hours_per_week'];
+                                
+                                // Calculate manual allocations for Shift 2
+                                $manual_count_shift2 = 0;
+                                if (isset($_SESSION['manual_allocations'][$current_index]['shift2'])) {
+                                    foreach ($_SESSION['manual_allocations'][$current_index]['shift2'] as $alloc) {
+                                        if ($alloc['subject_id'] == $subject['id']) {
+                                            $manual_count_shift2++;
+                                        }
+                                    }
+                                }
+                                $remaining_hours_shift2 = max(0, $current_hours_shift2 - $manual_count_shift2);
                                 ?>
-                                <input type="number" 
-                                       name="<?php echo $hours_key_shift2; ?>" 
-                                       value="<?php echo $current_hours_shift2; ?>" 
-                                       min="1" 
-                                       max="30" 
-                                       class="hours-input" 
-                                       data-shift="shift2"
-                                       required>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="number" 
+                                               name="<?php echo $hours_key_shift2; ?>" 
+                                               value="<?php echo $current_hours_shift2; ?>" 
+                                               min="<?php echo max(1, $manual_count_shift2); ?>" 
+                                               max="30" 
+                                               class="hours-input" 
+                                               data-shift="shift2"
+                                               data-subject-id="<?php echo $subject['id']; ?>"
+                                               required>
+                                        <button type="submit" name="action" value="manual" class="btn-manual"
+                                                onclick="return setManualAllocation(<?php echo $subject['id']; ?>, 'shift2')"
+                                                title="Set Manually">
+                                            Manual <?php echo $manual_count_shift2 > 0 ? "($manual_count_shift2)" : ""; ?>
+                                        </button>
+                                    </div>
+                                    <?php if ($manual_count_shift2 > 0): ?>
+                                        <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                            Remaining for Auto: <strong><?php echo $remaining_hours_shift2; ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <!-- Shift 2 Staff -->
                             <td>
@@ -2430,13 +2502,39 @@ if ($current_class_config['has_shifts']) {
                                     <input type="hidden" name="<?php echo $hours_key; ?>" value="<?php echo array_sum($split_hours_values_msc); ?>">
                                 <?php else: ?>
                                     <!-- Single hours input -->
-                                    <input type="number" 
-                                           name="<?php echo $hours_key; ?>" 
-                                           value="<?php echo $current_hours; ?>" 
-                                           min="1" 
-                                           max="30" 
-                                           class="hours-input" 
-                                           required>
+                                    <?php
+                                    $manual_count_single = 0;
+                                    if (isset($_SESSION['manual_allocations'][$current_index][''])) {
+                                        foreach ($_SESSION['manual_allocations'][$current_index][''] as $alloc) {
+                                            if ($alloc['subject_id'] == $subject['id']) {
+                                                $manual_count_single++;
+                                            }
+                                        }
+                                    }
+                                    $remaining_hours_single = max(0, $current_hours - $manual_count_single);
+                                    ?>
+                                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <input type="number" 
+                                                   name="<?php echo $hours_key; ?>" 
+                                                   value="<?php echo $current_hours; ?>" 
+                                                   min="<?php echo max(1, $manual_count_single); ?>" 
+                                                   max="30" 
+                                                   class="hours-input"
+                                                   data-subject-id="<?php echo $subject['id']; ?>"
+                                                   required>
+                                            <button type="submit" name="action" value="manual" class="btn-manual"
+                                                    onclick="return setManualAllocation(<?php echo $subject['id']; ?>, '')"
+                                                    title="Set Manually">
+                                                Manual <?php echo $manual_count_single > 0 ? "($manual_count_single)" : ""; ?>
+                                            </button>
+                                        </div>
+                                        <?php if ($manual_count_single > 0): ?>
+                                            <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                                Remaining for Auto: <strong><?php echo $remaining_hours_single; ?></strong>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -2516,46 +2614,122 @@ if ($current_class_config['has_shifts']) {
                                 $current_hours_shift1 = isset($_SESSION['hours_changes'][$hours_key_shift1]) 
                                     ? $_SESSION['hours_changes'][$hours_key_shift1] 
                                     : $subject['hours_per_week'];
+                                
+                                $manual_count_shift1 = 0;
+                                if (isset($_SESSION['manual_allocations'][$current_index]['shift1'])) {
+                                    foreach ($_SESSION['manual_allocations'][$current_index]['shift1'] as $alloc) {
+                                        if ($alloc['subject_id'] == $subject['id']) {
+                                            $manual_count_shift1++;
+                                        }
+                                    }
+                                }
+                                $remaining_hours_shift1 = max(0, $current_hours_shift1 - $manual_count_shift1);
                                 ?>
-                                <input type="number" 
-                                       name="<?php echo $hours_key_shift1; ?>" 
-                                       value="<?php echo $current_hours_shift1; ?>" 
-                                       min="0" 
-                                       max="30" 
-                                       class="hours-input" 
-                                       data-shift="shift1"
-                                       required>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="number" 
+                                               name="<?php echo $hours_key_shift1; ?>" 
+                                               value="<?php echo $current_hours_shift1; ?>" 
+                                               min="<?php echo max(1, $manual_count_shift1); ?>" 
+                                               max="30" 
+                                               class="hours-input" 
+                                               data-shift="shift1"
+                                               data-subject-id="<?php echo $subject['id']; ?>"
+                                               required>
+                                        <button type="submit" name="action" value="manual" class="btn-manual"
+                                                onclick="return setManualAllocation(<?php echo $subject['id']; ?>, 'shift1')"
+                                                title="Set Manually">
+                                            Manual <?php echo $manual_count_shift1 > 0 ? "($manual_count_shift1)" : ""; ?>
+                                        </button>
+                                    </div>
+                                    <?php if ($manual_count_shift1 > 0): ?>
+                                        <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                            Remaining for Auto: <strong><?php echo $remaining_hours_shift1; ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
-                            <td class="no-staff-required">No Staff Required</td>
+                            <td><div class="no-staff-label no-staff-required">No Staff Required</div></td>
                             <td>
                                 <?php 
                                 $hours_key_shift2 = 'hours_shift2_' . $subject['id'];
                                 $current_hours_shift2 = isset($_SESSION['hours_changes'][$hours_key_shift2]) 
                                     ? $_SESSION['hours_changes'][$hours_key_shift2] 
                                     : $subject['hours_per_week'];
+                                
+                                $manual_count_shift2 = 0;
+                                if (isset($_SESSION['manual_allocations'][$current_index]['shift2'])) {
+                                    foreach ($_SESSION['manual_allocations'][$current_index]['shift2'] as $alloc) {
+                                        if ($alloc['subject_id'] == $subject['id']) {
+                                            $manual_count_shift2++;
+                                        }
+                                    }
+                                }
+                                $remaining_hours_shift2 = max(0, $current_hours_shift2 - $manual_count_shift2);
                                 ?>
-                                <input type="number" 
-                                       name="<?php echo $hours_key_shift2; ?>" 
-                                       value="<?php echo $current_hours_shift2; ?>" 
-                                       min="0" 
-                                       max="30" 
-                                       class="hours-input" 
-                                       data-shift="shift2"
-                                       required>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="number" 
+                                               name="<?php echo $hours_key_shift2; ?>" 
+                                               value="<?php echo $current_hours_shift2; ?>" 
+                                               min="<?php echo max(1, $manual_count_shift2); ?>" 
+                                               max="30" 
+                                               class="hours-input" 
+                                               data-shift="shift2"
+                                               data-subject-id="<?php echo $subject['id']; ?>"
+                                               required>
+                                        <button type="submit" name="action" value="manual" class="btn-manual"
+                                                onclick="return setManualAllocation(<?php echo $subject['id']; ?>, 'shift2')"
+                                                title="Set Manually">
+                                            Manual <?php echo $manual_count_shift2 > 0 ? "($manual_count_shift2)" : ""; ?>
+                                        </button>
+                                    </div>
+                                    <?php if ($manual_count_shift2 > 0): ?>
+                                        <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                            Remaining for Auto: <strong><?php echo $remaining_hours_shift2; ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
-                            <td class="no-staff-required">No Staff Required</td>
+                            <td><div class="no-staff-label no-staff-required">No Staff Required</div></td>
                             <?php else: ?>
                             <!-- No Staff Required for single class -->
                             <td>
-                                <input type="number" 
-                                       name="<?php echo $hours_key; ?>" 
-                                       value="<?php echo $current_hours; ?>" 
-                                       min="1" 
-                                       max="30" 
-                                       class="hours-input" 
-                                       required>
+                                <?php
+                                $manual_count_single = 0;
+                                if (isset($_SESSION['manual_allocations'][$current_index][''])) {
+                                    foreach ($_SESSION['manual_allocations'][$current_index][''] as $alloc) {
+                                        if ($alloc['subject_id'] == $subject['id']) {
+                                            $manual_count_single++;
+                                        }
+                                    }
+                                }
+                                $remaining_hours_single = max(0, $current_hours - $manual_count_single);
+                                ?>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="number" 
+                                               name="<?php echo $hours_key; ?>" 
+                                               value="<?php echo $current_hours; ?>" 
+                                               min="<?php echo max(1, $manual_count_single); ?>" 
+                                               max="30" 
+                                               class="hours-input"
+                                               data-subject-id="<?php echo $subject['id']; ?>"
+                                               required>
+                                        <button type="submit" name="action" value="manual" class="btn-manual"
+                                                onclick="return setManualAllocation(<?php echo $subject['id']; ?>, '')"
+                                                title="Set Manually">
+                                            Manual <?php echo $manual_count_single > 0 ? "($manual_count_single)" : ""; ?>
+                                        </button>
+                                    </div>
+                                    <?php if ($manual_count_single > 0): ?>
+                                        <div style="font-size: 11px; color: #666; padding-left: 2px;">
+                                            Remaining for Auto: <strong><?php echo $remaining_hours_single; ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
-                            <td class="no-staff-required">No Staff Required</td>
+                            <td><div class="no-staff-label no-staff-required">No Staff Required</div></td>
                             <?php endif; ?>
                         <?php endif; ?>
                     </tr>
