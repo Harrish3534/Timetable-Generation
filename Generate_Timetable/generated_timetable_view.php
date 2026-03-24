@@ -7,11 +7,11 @@ $conn = getConnection();
 // Read stored timetable from session
 $timetables = isset($_SESSION['current_timetables']) ? $_SESSION['current_timetables'] : [];
 $semester_filter = isset($_SESSION['semester_filter']) ? $_SESSION['semester_filter'] : 'odd';
-<<<<<<< HEAD
-=======
+
+
 $generation_error = isset($_SESSION['generation_error']) ? $_SESSION['generation_error'] : null;
 unset($_SESSION['generation_error']);
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
 
 $days = ['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'];
 $hours = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
@@ -427,8 +427,8 @@ if ($has_timetable) {
 
         <?php
 else: ?>
-<<<<<<< HEAD
-=======
+
+
         <!-- Error Banner -->
         <?php if ($generation_error): ?>
         <div class="warning-banner no-print" style="background-color: #fef2f2; border-color: #ef4444; color: #991b1b;">
@@ -436,7 +436,7 @@ else: ?>
         </div>
         <?php endif; ?>
 
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
         <!-- Empty state -->
         <div class="empty-state">
             <div class="empty-state-icon">📊</div>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Default Manual Slot Allocations
-<<<<<<< HEAD
+
  * 
  * Structure: [semester_type][class_index][shift][slot_key] = ['subject_id' => int, 'day' => string, 'hour' => string, 'staff_index' => null]
  *
@@ -12,7 +12,7 @@
  *   2 = III B.Sc (Sem 5 / Sem 6)
  *   3 = I M.Sc (Sem 1 / Sem 2)
  *   4 = II M.Sc (Sem 3 / Sem 4)
-=======
+
  * * Structure: [semester_type][class_index][shift][slot_key] = ['subject_id' => int, 'day' => string, 'hour' => string, 'staff_index' => null]
  *
  * semester_type: 'odd' or 'even'
@@ -22,7 +22,7 @@
  * 2 = III B.Sc (Sem 5 / Sem 6)
  * 3 = I M.Sc (Sem 1 / Sem 2)
  * 4 = II M.Sc (Sem 3 / Sem 4)
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
  *
  * Days:  I DAY, II DAY, III DAY, IV DAY, V DAY, VI DAY
  * Hours: I HOUR, II HOUR, III HOUR, IV HOUR, V HOUR
@@ -62,15 +62,15 @@ $default_manual_allocations = [
                 // Environmental Studies (subject_id = 7, 2 hrs)
                 'III DAY_V HOUR' => ['subject_id' => 7, 'day' => 'III DAY', 'hour' => 'V HOUR', 'staff_index' => null],
                 'IV DAY_V HOUR' => ['subject_id' => 7, 'day' => 'IV DAY', 'hour' => 'V HOUR', 'staff_index' => null],
-<<<<<<< HEAD
-=======
+
+
 
                 // Programming Methodology Lab  (subject_id = 5, 4 hrs)
                 'I DAY_I HOUR' => ['subject_id' => 5, 'day' => 'I DAY', 'hour' => 'I HOUR', 'staff_index' => null],
                 'I DAY_II HOUR' => ['subject_id' => 5, 'day' => 'I DAY', 'hour' => 'II HOUR', 'staff_index' => null],
                 'V DAY_IV HOUR' => ['subject_id' => 5, 'day' => 'V DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
                 'V DAY_V HOUR' => ['subject_id' => 5, 'day' => 'V DAY', 'hour' => 'V HOUR', 'staff_index' => null],
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
             ],
 
             // ── Shift 2 ──────────────────────────────────────────────
@@ -99,15 +99,15 @@ $default_manual_allocations = [
                 // Environmental Studies (subject_id = 7, 2 hrs)
                 'V DAY_V HOUR' => ['subject_id' => 7, 'day' => 'V DAY', 'hour' => 'V HOUR', 'staff_index' => null],
                 'VI DAY_IV HOUR' => ['subject_id' => 7, 'day' => 'VI DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
-<<<<<<< HEAD
-=======
+
+
 
                 // Programming Methodology Lab  (subject_id = 5, 4 hrs)
                 'II DAY_IV HOUR' => ['subject_id' => 5, 'day' => 'II DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
                 'II DAY_V HOUR' => ['subject_id' => 5, 'day' => 'II DAY', 'hour' => 'V HOUR', 'staff_index' => null],
                 'V DAY_I HOUR' => ['subject_id' => 5, 'day' => 'V DAY', 'hour' => 'I HOUR', 'staff_index' => null],
                 'V DAY_II HOUR' => ['subject_id' => 5, 'day' => 'V DAY', 'hour' => 'II HOUR', 'staff_index' => null],
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
             ],
         ],
 
@@ -134,14 +134,14 @@ $default_manual_allocations = [
                 'V DAY_IV HOUR' => ['subject_id' => 30, 'day' => 'V DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
                 'V DAY_V HOUR' => ['subject_id' => 30, 'day' => 'V DAY', 'hour' => 'V HOUR', 'staff_index' => null],
                 'VI DAY_I HOUR' => ['subject_id' => 30, 'day' => 'VI DAY', 'hour' => 'I HOUR', 'staff_index' => null],
-<<<<<<< HEAD
-=======
+
+
 
                 // Java Programming Lab (subject_id = 29, 3 hrs)
                 'V DAY_I HOUR' => ['subject_id' => 29, 'day' => 'V DAY', 'hour' => 'I HOUR', 'staff_index' => null],
                 'V DAY_II HOUR' => ['subject_id' => 29, 'day' => 'V DAY', 'hour' => 'II HOUR', 'staff_index' => null],
                 'V DAY_III HOUR' => ['subject_id' => 29, 'day' => 'V DAY', 'hour' => 'III HOUR', 'staff_index' => null],
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
             ],
 
             // ── Shift 2 ──────────────────────────────────────────────
@@ -157,14 +157,14 @@ $default_manual_allocations = [
                 'IV DAY_IV HOUR' => ['subject_id' => 25, 'day' => 'IV DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
                 'V DAY_III HOUR' => ['subject_id' => 25, 'day' => 'V DAY', 'hour' => 'III HOUR', 'staff_index' => null],
                 'VI DAY_IV HOUR' => ['subject_id' => 25, 'day' => 'VI DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
-<<<<<<< HEAD
-=======
+
+
 
                 // Java Programming Lab (subject_id = 29, 3 hrs)
                 'I DAY_III HOUR' => ['subject_id' => 29, 'day' => 'I DAY', 'hour' => 'III HOUR', 'staff_index' => null],
                 'I DAY_IV HOUR' => ['subject_id' => 29, 'day' => 'I DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
                 'I DAY_V HOUR' => ['subject_id' => 29, 'day' => 'I DAY', 'hour' => 'V HOUR', 'staff_index' => null],
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
             ],
         ],
 
@@ -188,13 +188,13 @@ $default_manual_allocations = [
                 'III DAY_IV HOUR' => ['subject_id' => 46, 'day' => 'III DAY', 'hour' => 'IV HOUR', 'staff_index' => null],
             ],
         ],
-<<<<<<< HEAD
+
 
         // ──────────────────────────────────────────────────────────────
         // Add defaults for other class indices here for odd semesters
         // ──────────────────────────────────────────────────────────────
-=======
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
+
+
     ],
 
     'even' => [
@@ -333,8 +333,5 @@ $default_manual_allocations = [
             ],
         ]
     ]
-<<<<<<< HEAD
+
 ];
-=======
-];
->>>>>>> 0f15a3a (Updated Timetable Generation Project)

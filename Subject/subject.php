@@ -46,16 +46,14 @@ if (isset($_GET['toggle_allocate'])) {
 $semester = isset($_GET['semester']) ? intval($_GET['semester']) : 1;
 $type = isset($_GET['type']) ? $_GET['type'] : 'UG';
 
-<<<<<<< HEAD
-=======
 // Determine Odd/Even state. If not explicitly set, infer from the current semester
 if (isset($_GET['sem_type'])) {
     $sem_type = $_GET['sem_type'];
-} else {
+}
+else {
     $sem_type = ($semester % 2 == 0) ? 'even' : 'odd';
 }
 
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
 // Query to get subjects based on program (UG/PG) and semester
 $query = "SELECT * FROM subjects WHERE program = '$type' AND semester = $semester ORDER BY sort_order, id";
 $result = $conn->query($query);
@@ -111,16 +109,6 @@ $result = $conn->query($query);
             <h2>Subject Details</h2>
             <div class="filter-controls">
                 <button class="btn <?php echo $type == 'UG' ? 'btn-primary' : 'btn-secondary'; ?>"
-<<<<<<< HEAD
-                    onclick="window.location.href='subject.php?type=UG&semester=1'">UG</button>
-                <button class="btn <?php echo $type == 'PG' ? 'btn-primary' : 'btn-secondary'; ?>"
-                    onclick="window.location.href='subject.php?type=PG&semester=1'">PG</button>
-                <select class="filter-select"
-                    onchange="window.location.href='subject.php?type=<?php echo $type; ?>&semester=' + this.value">
-                    <?php
-                    $max_sem = ($type == 'UG') ? 6 : 4;
-                    for ($i = 1; $i <= $max_sem; $i++):
-=======
                     onclick="window.location.href='subject.php?type=UG&semester=<?php echo $sem_type == 'even' ? 2 : 1; ?>&sem_type=<?php echo $sem_type; ?>'">UG</button>
                 <button class="btn <?php echo $type == 'PG' ? 'btn-primary' : 'btn-secondary'; ?>"
                     onclick="window.location.href='subject.php?type=PG&semester=<?php echo $sem_type == 'even' ? 2 : 1; ?>&sem_type=<?php echo $sem_type; ?>'">PG</button>
@@ -133,22 +121,19 @@ $result = $conn->query($query);
                 <select class="filter-select"
                     onchange="window.location.href='subject.php?type=<?php echo $type; ?>&sem_type=<?php echo $sem_type; ?>&semester=' + this.value">
                     <?php
-                    $max_sem = ($type == 'UG') ? 6 : 4;
-                    $start_sem = ($sem_type == 'even') ? 2 : 1;
-                    
-                    // Loop increments by 2 to skip odd/even depending on selection
-                    for ($i = $start_sem; $i <= $max_sem; $i += 2):
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
-                        ?>
+$max_sem = ($type == 'UG') ? 6 : 4;
+$start_sem = ($sem_type == 'even') ? 2 : 1;
+
+// Loop increments by 2 to skip odd/even depending on selection
+for ($i = $start_sem; $i <= $max_sem; $i += 2):
+?>
                         <option value="<?php echo $i; ?>" <?php echo $semester == $i ? 'selected' : ''; ?>>
                             Semester <?php echo $i; ?>
                         </option>
-                    <?php endfor; ?>
+                    <?php
+endfor; ?>
                 </select>
-<<<<<<< HEAD
-=======
 
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 <button class="btn btn-add" onclick="window.location.href='subject_add.php'">+ Add</button>
             </div>
         </div>
@@ -173,7 +158,8 @@ $result = $conn->query($query);
                                 <?php if (!$is_allocated): ?>
                                     <span style="font-size:11px; color:#d97706; font-weight:600; margin-left:6px;">(Not in
                                         Timetable)</span>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($row['sub_code']); ?></td>
                             <td><?php echo htmlspecialchars($row['hours_per_week']); ?></td>
@@ -191,28 +177,29 @@ $result = $conn->query($query);
                                     <a href="subject.php?toggle_allocate=<?php echo $row['id']; ?>&type=<?php echo $type; ?>&semester=<?php echo $semester; ?>"
                                         class="btn-action btn-deallocate"
                                         onclick="return confirm('Remove &quot;<?php echo htmlspecialchars($row['title']); ?>&quot; from the timetable?')">Deallocate</a>
-                                <?php else: ?>
+                                <?php
+        else: ?>
                                     <a href="subject.php?toggle_allocate=<?php echo $row['id']; ?>&type=<?php echo $type; ?>&semester=<?php echo $semester; ?>"
                                         class="btn-action btn-allocate">Allocate</a>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                             </td>
                         </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
+                    <?php
+    endwhile; ?>
+                <?php
+else: ?>
                     <tr>
                         <td colspan="5" style="text-align: center; padding: 30px; color: #6b7280;">
                             No subjects found for <?php echo $type; ?> Semester <?php echo $semester; ?>.
                         </td>
                     </tr>
-                <?php endif; ?>
+                <?php
+endif; ?>
             </tbody>
         </table>
     </div>
 </body>
 
 </html>
-<<<<<<< HEAD
 <?php $conn->close(); ?>
-=======
-<?php $conn->close(); ?>
->>>>>>> 0f15a3a (Updated Timetable Generation Project)

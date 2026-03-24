@@ -202,18 +202,12 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
         <a href="../Subject/subject.php" class="tab">
             <span class="tab-icon">📚</span> Subjects
         </a>
-<<<<<<< HEAD
-        <a href="redirect_timetable.php" class="tab active">
-            <span class="tab-icon">📅</span> Class Timetable
-        </a>
-=======
         <a href="redirect_timetable.php" class="tab">
             <span class="tab-icon">📅</span> Class Timetable
         </a>
         <a href="../Generated_Timetable/generated_timetable_view.php" class="tab active">
             <span class="tab-icon">📊</span> Generated Timetable
         </a>
->>>>>>> 0f15a3a (Updated Timetable Generation Project)
         <a href="../SavedTimetable/saved_timetable.php" class="tab">
             <span class="tab-icon">💾</span> Saved Timetables
         </a>
