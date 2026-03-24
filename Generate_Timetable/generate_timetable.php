@@ -145,9 +145,12 @@ function markStaffOccupied($staff_id, $day, $hour)
     $staff_schedule[$key][$staff_id] = true;
 }
 
+<<<<<<< HEAD
 /**
  * Count how many timetable slots on $day already belong to $staff_id.
  */
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 function getStaffHoursOnDay(array $timetable, $staff_id, string $day): int
 {
     $count = 0;
@@ -159,9 +162,25 @@ function getStaffHoursOnDay(array $timetable, $staff_id, string $day): int
     return $count;
 }
 
+<<<<<<< HEAD
 /**
  * Return true if $staff_id already has a Lab slot on $day.
  */
+=======
+function getGlobalStaffHoursOnDay($staff_id, $day): int
+{
+    global $staff_schedule, $hours;
+    $count = 0;
+    foreach ($hours as $hour) {
+        $key = $day . '_' . $hour;
+        if (isset($staff_schedule[$key][$staff_id])) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 function staffHasLabOnDay(array $timetable, $staff_id, string $day): bool
 {
     foreach ($timetable[$day] as $hour => $slot) {
@@ -234,7 +253,10 @@ function hasGaps($timetable, $days, $hours, $semester)
 {
     foreach ($days as $day) {
         foreach ($hours as $hour) {
+<<<<<<< HEAD
             // Skip NME reserved slots that might legitimately be empty
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             if (isNMEReserved($semester, $day, $hour)) {
                 continue;
             }
@@ -247,16 +269,24 @@ function hasGaps($timetable, $days, $hours, $semester)
     return false;
 }
 
+<<<<<<< HEAD
 // Generate timetable for a single class with multiple attempts.
 // Returns a fully gap-free timetable, or null if none found within the limit.
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 function generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, $max_attempts = 300)
 {
     global $staff_schedule, $lab_schedule;
 
     $start_time = time();
+<<<<<<< HEAD
     $max_time_per_class = 8; // allow up to 8 seconds per class
 
     // Resolve class index once
+=======
+    $max_time_per_class = 8; 
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $class_index = 0;
     if (isset($_SESSION['current_class_index_map'][$class['id']])) {
         $class_index = $_SESSION['current_class_index_map'][$class['id']];
@@ -278,18 +308,27 @@ function generateTimetableForClass($class, $subjects, $days, $hours, $semester, 
         }
     }
 
+<<<<<<< HEAD
     // Save original global state before any attempt
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $initial_staff_schedule = $staff_schedule;
     $initial_lab_schedule   = $lab_schedule;
 
     for ($attempt = 0; $attempt < $max_attempts; $attempt++) {
+<<<<<<< HEAD
         // Reset global state to initial for each attempt
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $staff_schedule = $initial_staff_schedule;
         $lab_schedule   = $initial_lab_schedule;
 
         $result = generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group, $class_index);
 
+<<<<<<< HEAD
         // Check for gaps
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $gap_count = 0;
         foreach ($days as $day) {
             foreach ($hours as $hour) {
@@ -301,18 +340,27 @@ function generateTimetableForClass($class, $subjects, $days, $hours, $semester, 
             }
         }
 
+<<<<<<< HEAD
         // Only accept gap-free results
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         if ($gap_count === 0) {
             return $result['timetable'];
         }
 
+<<<<<<< HEAD
         // Break early if taking too long
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         if (time() - $start_time >= $max_time_per_class) {
             break;
         }
     }
 
+<<<<<<< HEAD
     // Could not find a gap-free arrangement — restore original state and return null
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $staff_schedule = $initial_staff_schedule;
     $lab_schedule   = $initial_lab_schedule;
     return null;
@@ -322,7 +370,10 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 {
     global $staff_schedule, $lab_schedule;
 
+<<<<<<< HEAD
     // Initialize timetable
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $timetable = [];
     foreach ($days as $day) {
         $timetable[$day] = [];
@@ -335,16 +386,39 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     $days_with_labs = [];
     $remaining_hours = [];
 
+<<<<<<< HEAD
+=======
+    $program = 'UG';
+    foreach ($subjects as $s) {
+        if (strpos(strtolower($s['title']), 'advance') !== false || strpos(strtolower($s['title']), 'dbms') !== false || strpos(strtolower($s['title']), 'database') !== false || strpos(strtolower($s['title']), 'dip') !== false || strpos(strtolower($s['title']), 'image') !== false || strpos(strtolower($s['title']), 'mobile') !== false || strpos(strtolower($s['title']), 'python programming') !== false) {
+            if ($semester === 1 || $semester === 2 || $semester === 3 || $semester === 4 && strpos(strtolower($s['title']), 'm.sc') !== false) {
+                $program = 'PG';
+                break;
+            }
+        }
+    }
+    if ($class_index === 3 || $class_index === 4) {
+        $program = 'PG';
+    }
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     foreach ($subjects as $subject) {
         $remaining_hours[$subject['id']] = $subject['hours_per_week'];
     }
 
+<<<<<<< HEAD
     // Categorize subjects
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $labs_4hr = [];
     $labs_3hr = [];
     $labs_2hr = [];
     $nme_subjects = [];
+<<<<<<< HEAD
     $fixed_subjects = []; // Tamil (Common), English (Common), Allied — NEVER shuffled
+=======
+    $fixed_subjects = []; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $regular_subjects = [];
 
     foreach ($subjects as $subject) {
@@ -361,7 +435,10 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
             $nme_subjects[] = $subject;
         }
         elseif ($subject['type'] === 'Common' || $subject['type'] === 'Allied') {
+<<<<<<< HEAD
             // Fixed subjects: Tamil, English (Common) and Allied — placed at fixed positions
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             $fixed_subjects[] = $subject;
         }
         else {
@@ -369,26 +446,50 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         }
     }
 
+<<<<<<< HEAD
     // Shuffle ONLY core/regular subjects — fixed subjects NEVER shuffled
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     shuffle($labs_4hr);
     shuffle($labs_3hr);
     shuffle($labs_2hr);
     shuffle($regular_subjects);
 
+<<<<<<< HEAD
     // Labs use $days (fixed order) so common subjects always land same slots each regeneration
     $lab_days_order = $days; // fixed order for lab placement
     $shuffled_days = $days;
     shuffle($shuffled_days); // core subjects still vary
+=======
+    $lab_days_order = $days; 
+    $shuffled_days = $days;
+    shuffle($shuffled_days); 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 
     // ============================================================
     // STEP 0.5: PRE-FILL MANUAL ALLOCATIONS
     // ============================================================
     if (isset($_SESSION['manual_allocations'][$class_index][$shift_group])) {
+<<<<<<< HEAD
+=======
+        // Track which split-subject index to use next for each base subject_id
+        $split_dist_counter = []; // base_id => next_staff_index_to_use (1-based)
+
+        // Pre-build a map of split subjects per base_id for quick lookup
+        $split_subjects_map = []; // base_id => [ staff_index => subject ]
+        foreach ($subjects as $s) {
+            $bid = $s['base_id'] ?? $s['id'];
+            $sidx = $s['staff_index'] ?? 1;
+            $split_subjects_map[$bid][$sidx] = $s;
+        }
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         foreach ($_SESSION['manual_allocations'][$class_index][$shift_group] as $slot => $alloc) {
             $day = $alloc['day'];
             $hour = $alloc['hour'];
             $subject_id = $alloc['subject_id'];
 
+<<<<<<< HEAD
             // Find the subject based on the manual allocation's base ID and match to staff_index if it was saved
             $manual_subject = null;
             $manual_staff_index = isset($alloc['staff_index']) ? $alloc['staff_index'] : null;
@@ -397,15 +498,48 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 // If the manual allocation specified a staff_index snippet, use the exact ID match
                 // Otherwise fallback to base_id matching
                 if ($manual_staff_index !== null) {
+=======
+            $manual_subject = null;
+            $manual_staff_index = isset($alloc['staff_index']) ? $alloc['staff_index'] : null;
+
+            if ($manual_staff_index !== null) {
+                // Explicit staff_index — find exact split subject
+                foreach ($subjects as $s) {
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     if ($s['id'] === $subject_id . '_' . $manual_staff_index) {
                         $manual_subject = $s;
                         break;
                     }
                 }
+<<<<<<< HEAD
                 else {
                     if ($s['base_id'] == $subject_id) {
                         $manual_subject = $s;
                         break;
+=======
+            } else {
+                // No explicit staff_index — check if multiple split subjects exist
+                $available_splits = $split_subjects_map[$subject_id] ?? [];
+                if (count($available_splits) > 1) {
+                    // Sort by staff index
+                    ksort($available_splits);
+                    $split_keys = array_keys($available_splits);
+
+                    // Pick the next split subject in sequence (round-robin)
+                    if (!isset($split_dist_counter[$subject_id])) {
+                        $split_dist_counter[$subject_id] = 0;
+                    }
+                    $pick_key = $split_keys[$split_dist_counter[$subject_id] % count($split_keys)];
+                    $manual_subject = $available_splits[$pick_key];
+                    $split_dist_counter[$subject_id]++;
+                } else {
+                    // Single subject — original behaviour
+                    foreach ($subjects as $s) {
+                        if ($s['base_id'] == $subject_id) {
+                            $manual_subject = $s;
+                            break;
+                        }
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     }
                 }
             }
@@ -420,13 +554,18 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 }
                 if ($manual_subject['type'] === 'Lab') {
                     markLabSlotOccupied($day, $hour, $shift_group);
+<<<<<<< HEAD
                     $days_with_labs[$day] = $manual_subject['id']; // Register lab day
+=======
+                    $days_with_labs[$day] = $manual_subject['id'];
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 }
                 $remaining_hours[$manual_subject['id']]--;
             }
         }
     }
 
+<<<<<<< HEAD
     // ============================================================
     // STEP 0.5: STRICT ENGLISH PLACEMENT — I B.Sc & II B.Sc (odd semester)
     // These slots are ABSOLUTE and must never change on refresh.
@@ -443,6 +582,14 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     $english_subject_placed = false;
     if ($semester === 1 || $semester === 3) { // Odd semesters only — even semester slots to be configured later
         // Find English subject
+=======
+
+    // ============================================================
+    // STEP 0.5b: STRICT ENGLISH PLACEMENT
+    // ============================================================
+    $english_subject_placed = false;
+    if ($semester === 1 || $semester === 3) { 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $english_sub = null;
         foreach ($subjects as $sub) {
             if ($sub['type'] === 'Common' && stripos($sub['title'], 'english') !== false) {
@@ -452,6 +599,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         }
 
         if ($english_sub !== null) {
+<<<<<<< HEAD
             // Define strict slots by semester and shift
             if ($semester === 1) {
                 // I B.Sc
@@ -486,6 +634,19 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         ['V DAY', 'III HOUR'],
                         ['VI DAY', 'IV HOUR'],
                     ];
+=======
+            if ($semester === 1) {
+                if ($shift_group === 'shift1') {
+                    $english_strict_slots = [['I DAY', 'IV HOUR'], ['II DAY', 'III HOUR'], ['III DAY', 'IV HOUR'], ['VI DAY', 'III HOUR']];
+                } else { 
+                    $english_strict_slots = [['I DAY', 'I HOUR'], ['II DAY', 'II HOUR'], ['IV DAY', 'II HOUR'], ['VI DAY', 'II HOUR']];
+                }
+            } else {
+                if ($shift_group === 'shift1') {
+                    $english_strict_slots = [['I DAY', 'II HOUR'], ['II DAY', 'I HOUR'], ['III DAY', 'II HOUR'], ['IV DAY', 'I HOUR']];
+                } else { 
+                    $english_strict_slots = [['II DAY', 'IV HOUR'], ['IV DAY', 'IV HOUR'], ['V DAY', 'III HOUR'], ['VI DAY', 'IV HOUR']];
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 }
             }
 
@@ -505,6 +666,123 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     // ============================================================
+<<<<<<< HEAD
+=======
+    // STEP 0.6: STRICT LAB PLACEMENT
+    // ============================================================
+    $strict_lab_slots_map = [];
+    foreach ($subjects as $sub) {
+        $sub_title = strtolower($sub['title']);
+        $is_lab = ($sub['type'] === 'Lab');
+        
+        if ($is_lab || strpos($sub_title, 'python') !== false) {
+            
+            // --- ODD SEMESTERS ---
+            if ($semester % 2 !== 0) {
+                // I B.Sc (sem 1)
+                if ($semester === 1 && $program === 'UG' && $is_lab && strpos($sub_title, 'programming methodology') !== false) {
+                    $strict_lab_slots_map[$sub['id']] = ($shift_group === 'shift1') ?
+                        [['I DAY', 'I HOUR'], ['I DAY', 'II HOUR'], ['V DAY', 'IV HOUR'], ['V DAY', 'V HOUR']] :
+                        [['II DAY', 'IV HOUR'], ['II DAY', 'V HOUR'], ['V DAY', 'I HOUR'], ['V DAY', 'II HOUR']];
+                }
+                // II B.Sc (sem 3)
+                elseif ($semester === 3 && $program === 'UG' && $is_lab && strpos($sub_title, 'java') !== false) {
+                    $strict_lab_slots_map[$sub['id']] = ($shift_group === 'shift1') ?
+                        [['V DAY', 'I HOUR'], ['V DAY', 'II HOUR'], ['V DAY', 'III HOUR']] :
+                        [['I DAY', 'III HOUR'], ['I DAY', 'IV HOUR'], ['I DAY', 'V HOUR']];
+                }
+                // III B.Sc (sem 5)
+                elseif ($semester === 5 && $program === 'UG' && $is_lab) {
+                    if (strpos($sub_title, 'internet technologies') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['IV DAY', 'I HOUR'], ['IV DAY', 'II HOUR'], ['IV DAY', 'III HOUR']];
+                    } elseif (strpos($sub_title, 'linux shell') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['VI DAY', 'IV HOUR'], ['VI DAY', 'V HOUR']];
+                    }
+                }
+                // I M.Sc (sem 1)
+                elseif ($semester === 1 && $program === 'PG' && $is_lab) {
+                    if (strpos($sub_title, 'advance') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['II DAY', 'I HOUR'], ['II DAY', 'II HOUR'], ['II DAY', 'III HOUR']];
+                    } elseif (strpos($sub_title, 'dbms') !== false || strpos($sub_title, 'database') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['IV DAY', 'IV HOUR'], ['IV DAY', 'V HOUR']];
+                    }
+                }
+                // II M.Sc (sem 3)
+                elseif ($semester === 3 && $program === 'PG' && $is_lab) {
+                    if (strpos($sub_title, 'dip') !== false || strpos($sub_title, 'image') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['VI DAY', 'I HOUR'], ['VI DAY', 'II HOUR'], ['VI DAY', 'III HOUR']];
+                    } elseif (strpos($sub_title, 'mobile') !== false && strpos($sub_title, 'app') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['III DAY', 'IV HOUR'], ['III DAY', 'V HOUR']];
+                    }
+                }
+            } 
+            // --- EVEN SEMESTERS ---
+            else {
+                // I B.Sc (sem 2) C++
+                if ($semester === 2 && $program === 'UG' && $is_lab && strpos($sub_title, 'c++') !== false) {
+                    $strict_lab_slots_map[$sub['id']] = ($shift_group === 'shift1') ?
+                        [['V DAY', 'III HOUR'], ['V DAY', 'IV HOUR'], ['V DAY', 'V HOUR']] :
+                        [['IV DAY', 'III HOUR'], ['IV DAY', 'IV HOUR'], ['IV DAY', 'V HOUR']];
+                }
+                // II B.Sc (sem 4) Python & DBMS
+                elseif ($semester === 4 && $program === 'UG' && $is_lab) {
+                    if (strpos($sub_title, 'python') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = [['II DAY', 'IV HOUR'], ['II DAY', 'V HOUR']];
+                    } elseif (strpos($sub_title, 'dbms') !== false || strpos($sub_title, 'database') !== false) {
+                        $strict_lab_slots_map[$sub['id']] = ($shift_group === 'shift1') ?
+                            [['VI DAY', 'IV HOUR'], ['VI DAY', 'V HOUR']] :
+                            [['IV DAY', 'I HOUR'], ['IV DAY', 'II HOUR']];
+                    }
+                }
+                
+                // C# Lab (UG)
+                if ($program === 'UG' && $is_lab && strpos($sub_title, 'c#') !== false) {
+                    $strict_lab_slots_map[$sub['id']] = [['I DAY', 'I HOUR'], ['I DAY', 'II HOUR'], ['I DAY', 'III HOUR']];
+                }
+                // OSC Lab (UG)
+                if ($program === 'UG' && $is_lab && (strpos($sub_title, 'osc') !== false || strpos($sub_title, 'open source') !== false)) {
+                    $strict_lab_slots_map[$sub['id']] = ($shift_group === 'shift1') ?
+                        [['V DAY', 'I HOUR'], ['V DAY', 'II HOUR']] :
+                        [['V DAY', 'IV HOUR'], ['V DAY', 'V HOUR']];
+                }
+                // Data Mining Lab (UG / PG)
+                if ($is_lab && (strpos($sub_title, 'data mining') !== false || strpos($sub_title, 'dm&r') !== false)) {
+                    $strict_lab_slots_map[$sub['id']] = [['III DAY', 'I HOUR'], ['III DAY', 'II HOUR'], ['III DAY', 'III HOUR']];
+                }
+                // Python Programming (PG Sem 2) 
+                if ($semester === 2 && $program === 'PG' && strpos($sub_title, 'python') !== false) {
+                    $strict_lab_slots_map[$sub['id']] = [['I DAY', 'IV HOUR'], ['I DAY', 'V HOUR']];
+                }
+            }
+        }
+    }
+
+    foreach ($subjects as $sub) {
+        if (isset($strict_lab_slots_map[$sub['id']])) {
+            foreach ($strict_lab_slots_map[$sub['id']] as $slot) {
+                $l_day = $slot[0];
+                $l_hour = $slot[1];
+                $key = $l_day . '_' . $l_hour;
+
+                if (!isset($used_slots[$key])) {
+                    $timetable[$l_day][$l_hour] = $sub;
+                    $used_slots[$key] = true;
+                    if (isset($sub['staff_id'])) {
+                        markStaffOccupied($sub['staff_id'], $l_day, $l_hour);
+                    }
+                    if ($sub['type'] === 'Lab') {
+                        markLabSlotOccupied($l_day, $l_hour, $shift_group);
+                        $days_with_labs[$l_day] = $sub['id'];
+                    }
+                    $remaining_hours[$sub['id']]--;
+                }
+            }
+        }
+    }
+
+
+    // ============================================================
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     // STEP 1: NME — always Days 1-3, Hour 4 (III B.Sc only)
     // ============================================================
     if ($semester >= 5 && $semester <= 6) {
@@ -526,19 +804,27 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     // ============================================================
+<<<<<<< HEAD
     // STEP 2: Lab allocation — using FIXED day order (not shuffled)
     // Labs must be placed BEFORE Tamil/English/Allied so their slots
     // are reserved first, allowing common subjects to find the right
     // remaining slots as shown in the reference timetable.
     // ============================================================
     // 2-hr preferred sets: IV-V first (end of day preferred)
+=======
+    // STEP 2: Remaining Lab allocation 
+    // ============================================================
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $possible_2hr_sets_preferred = [
         ['IV HOUR', 'V HOUR'],
         ['III HOUR', 'IV HOUR'],
         ['II HOUR', 'III HOUR'],
         ['I HOUR', 'II HOUR'],
     ];
+<<<<<<< HEAD
     // For 4-hr split: each half is 2 consecutive hours
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $possible_2hr_sets = [
         ['I HOUR', 'II HOUR'],
         ['II HOUR', 'III HOUR'],
@@ -547,6 +833,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     ];
 
     foreach ($labs_4hr as $lab) {
+<<<<<<< HEAD
         if ($remaining_hours[$lab['id']] <= 0)
             continue;
 
@@ -556,12 +843,20 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 break;
             if (isset($days_with_labs[$day1]))
                 continue;
+=======
+        if ($remaining_hours[$lab['id']] <= 0) continue;
+        $placed4 = false;
+        foreach ($lab_days_order as $day1) {
+            if ($placed4) break;
+            if (isset($days_with_labs[$day1])) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 
             foreach ($possible_2hr_sets as $slot1_hours) {
                 $can_place1 = true;
                 foreach ($slot1_hours as $h) {
                     $key = $day1 . '_' . $h;
                     if (isset($used_slots[$key]) || !isLabSlotAvailable($day1, $h, $shift_group)) {
+<<<<<<< HEAD
                         $can_place1 = false;
                         break;
                     }
@@ -582,10 +877,25 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         // Avoid same pair on both days to prevent repeating hours
                         if ($slot2_hours === $slot1_hours)
                             continue;
+=======
+                        $can_place1 = false; break;
+                    }
+                    if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day1, $h)) {
+                        $can_place1 = false; break;
+                    }
+                }
+                if (!$can_place1) continue;
+
+                foreach ($shuffled_days as $day2) {
+                    if ($day2 === $day1 || isset($days_with_labs[$day2])) continue;
+                    foreach ($possible_2hr_sets as $slot2_hours) {
+                        if ($slot2_hours === $slot1_hours) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                         $can_place2 = true;
                         foreach ($slot2_hours as $h) {
                             $key = $day2 . '_' . $h;
                             if (isset($used_slots[$key]) || !isLabSlotAvailable($day2, $h, $shift_group)) {
+<<<<<<< HEAD
                                 $can_place2 = false;
                                 break;
                             }
@@ -596,26 +906,49 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         }
                         if ($can_place2) {
                             // Place first half
+=======
+                                $can_place2 = false; break;
+                            }
+                            if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day2, $h)) {
+                                $can_place2 = false; break;
+                            }
+                        }
+                        if ($can_place2) {
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                             foreach ($slot1_hours as $h) {
                                 $timetable[$day1][$h] = $lab;
                                 $used_slots[$day1 . '_' . $h] = true;
                                 markLabSlotOccupied($day1, $h, $shift_group);
+<<<<<<< HEAD
                                 if (isset($lab['staff_id']))
                                     markStaffOccupied($lab['staff_id'], $day1, $h);
                             }
                             $days_with_labs[$day1] = $lab['id'];
                             // Place second half
+=======
+                                if (isset($lab['staff_id'])) markStaffOccupied($lab['staff_id'], $day1, $h);
+                            }
+                            $days_with_labs[$day1] = $lab['id'];
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                             foreach ($slot2_hours as $h) {
                                 $timetable[$day2][$h] = $lab;
                                 $used_slots[$day2 . '_' . $h] = true;
                                 markLabSlotOccupied($day2, $h, $shift_group);
+<<<<<<< HEAD
                                 if (isset($lab['staff_id']))
                                     markStaffOccupied($lab['staff_id'], $day2, $h);
+=======
+                                if (isset($lab['staff_id'])) markStaffOccupied($lab['staff_id'], $day2, $h);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                             }
                             $days_with_labs[$day2] = $lab['id'];
                             $remaining_hours[$lab['id']] -= 4;
                             $placed4 = true;
+<<<<<<< HEAD
                             break 3; // break slot2_hours, shuffled_days(day2), possible_2hr_sets(slot1)
+=======
+                            break 3; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                         }
                     }
                 }
@@ -624,6 +957,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     foreach ($labs_3hr as $lab) {
+<<<<<<< HEAD
         if ($remaining_hours[$lab['id']] <= 0)
             continue;
 
@@ -637,17 +971,34 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
             if (isset($days_with_labs[$day]))
                 continue;
 
+=======
+        if ($remaining_hours[$lab['id']] <= 0) continue;
+        $possible_3hr_sets = [
+            ['I HOUR', 'II HOUR', 'III HOUR'],  
+            ['III HOUR', 'IV HOUR', 'V HOUR'],  
+        ];
+        $placed_3hr = false;
+        foreach ($lab_days_order as $day) {
+            if (isset($days_with_labs[$day])) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             foreach ($possible_3hr_sets as $slot_hours) {
                 $can_place = true;
                 foreach ($slot_hours as $h) {
                     $key = $day . '_' . $h;
                     if (isset($used_slots[$key]) || !isLabSlotAvailable($day, $h, $shift_group)) {
+<<<<<<< HEAD
                         $can_place = false;
                         break;
                     }
                     if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day, $h)) {
                         $can_place = false;
                         break;
+=======
+                        $can_place = false; break;
+                    }
+                    if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day, $h)) {
+                        $can_place = false; break;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     }
                 }
                 if ($can_place) {
@@ -655,26 +1006,39 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         $timetable[$day][$h] = $lab;
                         $used_slots[$day . '_' . $h] = true;
                         markLabSlotOccupied($day, $h, $shift_group);
+<<<<<<< HEAD
                         if (isset($lab['staff_id']))
                             markStaffOccupied($lab['staff_id'], $day, $h);
+=======
+                        if (isset($lab['staff_id'])) markStaffOccupied($lab['staff_id'], $day, $h);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     }
                     $days_with_labs[$day] = $lab['id'];
                     $remaining_hours[$lab['id']] -= 3;
                     $placed_3hr = true;
+<<<<<<< HEAD
                     break 2; // break slot_hours loop AND day loop
+=======
+                    break 2; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 }
             }
         }
     }
 
     foreach ($labs_2hr as $lab) {
+<<<<<<< HEAD
         if ($remaining_hours[$lab['id']] <= 0)
             continue;
 
+=======
+        if ($remaining_hours[$lab['id']] <= 0) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $target_days = $lab_days_order;
         if ($semester >= 5 && $semester <= 6) {
             $target_days = array_intersect($lab_days_order, ['IV DAY', 'V DAY', 'VI DAY']);
         }
+<<<<<<< HEAD
 
         $placed_2hr = false;
         foreach ($target_days as $day) {
@@ -682,17 +1046,29 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 continue;
 
             // Prefer IV-V (end of day) for 2-hr labs
+=======
+        $placed_2hr = false;
+        foreach ($target_days as $day) {
+            if (isset($days_with_labs[$day])) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             foreach ($possible_2hr_sets_preferred as $slot_hours) {
                 $can_place = true;
                 foreach ($slot_hours as $h) {
                     $key = $day . '_' . $h;
                     if (isset($used_slots[$key]) || !isLabSlotAvailable($day, $h, $shift_group)) {
+<<<<<<< HEAD
                         $can_place = false;
                         break;
                     }
                     if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day, $h)) {
                         $can_place = false;
                         break;
+=======
+                        $can_place = false; break;
+                    }
+                    if (isset($lab['staff_id']) && !isStaffAvailable($lab['staff_id'], $day, $h)) {
+                        $can_place = false; break;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     }
                 }
                 if ($can_place) {
@@ -700,13 +1076,21 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                         $timetable[$day][$h] = $lab;
                         $used_slots[$day . '_' . $h] = true;
                         markLabSlotOccupied($day, $h, $shift_group);
+<<<<<<< HEAD
                         if (isset($lab['staff_id']))
                             markStaffOccupied($lab['staff_id'], $day, $h);
+=======
+                        if (isset($lab['staff_id'])) markStaffOccupied($lab['staff_id'], $day, $h);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     }
                     $days_with_labs[$day] = $lab['id'];
                     $remaining_hours[$lab['id']] -= 2;
                     $placed_2hr = true;
+<<<<<<< HEAD
                     break 2; // break slot_hours AND day
+=======
+                    break 2; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 }
             }
         }
@@ -714,12 +1098,15 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 
     // ============================================================
     // STEP 0: FIXED PLACEMENT — Tamil, English (Common), Allied
+<<<<<<< HEAD
     // Placed AFTER labs so lab slots are already reserved.
     // Each subject targets exact (day → preferred hour) from reference.
     // I B.Sc (sem 1-2):  Tamil Hr3/Hr4 alternating, English Hr4/Hr3 (opposite)
     //                    Allied Hr5→Hr1→Hr1→Hr5→Hr2→Hr2 across days
     // II B.Sc (sem 3-4): Tamil Hr1/Hr2 alternating, English Hr2/Hr1 (opposite)
     //                    Allied Hr4→Hr4→Hr3→Hr5→Hr4→Hr5 across days
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     // ============================================================
     $fixed_preferred = [
         'Tamil' => [
@@ -746,7 +1133,10 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         $sub_type = $fixed_sub['type'];
         $title_lower = strtolower($fixed_sub['title']);
 
+<<<<<<< HEAD
         // Skip English for I B.Sc — already strictly placed in STEP 0.5
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         if ($english_subject_placed && stripos($title_lower, 'english') !== false) {
             continue;
         }
@@ -766,14 +1156,20 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
 
         $hours_to_place = $remaining_hours[$fixed_sub['id']];
 
+<<<<<<< HEAD
         foreach ($days as $day) { // fixed day order — I→VI
             if ($hours_to_place <= 0)
                 break;
 
+=======
+        foreach ($days as $day) { 
+            if ($hours_to_place <= 0) break;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             $hours_to_try = ($pref_map && isset($pref_map[$day])) ? $pref_map[$day] : $hours;
 
             foreach ($hours_to_try as $hour) {
                 $key = $day . '_' . $hour;
+<<<<<<< HEAD
                 if (isset($used_slots[$key]) || $timetable[$day][$hour] !== null)
                     continue;
                 if (isNMEReserved($semester, $day, $hour))
@@ -788,12 +1184,27 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 $remaining_hours[$fixed_sub['id']]--;
                 $hours_to_place--;
                 break; // one slot per day
+=======
+                if (isset($used_slots[$key]) || $timetable[$day][$hour] !== null) continue;
+                if (isNMEReserved($semester, $day, $hour)) continue;
+                if (isset($fixed_sub['staff_id']) && !isStaffAvailable($fixed_sub['staff_id'], $day, $hour)) continue;
+
+                $timetable[$day][$hour] = $fixed_sub;
+                $used_slots[$key] = true;
+                if (isset($fixed_sub['staff_id'])) markStaffOccupied($fixed_sub['staff_id'], $day, $hour);
+                $remaining_hours[$fixed_sub['id']]--;
+                $hours_to_place--;
+                break; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             }
         }
     }
 
     // STEP 3: Fill with regular subjects
+<<<<<<< HEAD
     // Create pool of all subject instances needed
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $subject_pool = [];
     foreach ($regular_subjects as $subject) {
         for ($i = 0; $i < $subject['hours_per_week']; $i++) {
@@ -801,14 +1212,20 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         }
     }
 
+<<<<<<< HEAD
     // Shuffle the pool for randomness
     shuffle($subject_pool);
 
     // Place each instance
+=======
+    shuffle($subject_pool);
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     foreach ($subject_pool as $subject) {
         $placed = false;
         $is_staff_subject = isset($subject['staff_id']);
 
+<<<<<<< HEAD
         // Try all possible positions
         foreach ($shuffled_days as $day) {
             if ($placed)
@@ -846,6 +1263,28 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 if ($is_staff_subject) {
                     markStaffOccupied($subject['staff_id'], $day, $hour);
                 }
+=======
+        foreach ($shuffled_days as $day) {
+            if ($placed) break;
+            foreach ($hours as $hour) {
+                $key = $day . '_' . $hour;
+
+                if (isset($used_slots[$key]) || $timetable[$day][$hour] !== null) continue;
+                if (isNMEReserved($semester, $day, $hour)) continue;
+                if ($is_staff_subject && !isStaffAvailable($subject['staff_id'], $day, $hour)) continue;
+
+                if ($is_staff_subject) {
+                    $hours_today = getStaffHoursOnDay($timetable, $subject['staff_id'], $day);
+                    if ($hours_today >= 3) continue;
+                    if ($subject['type'] !== 'Lab' && staffHasLabOnDay($timetable, $subject['staff_id'], $day)) continue;
+                }
+
+                if (wouldViolateConsecutive($timetable, $day, $hour, $subject['id'])) continue;
+
+                $timetable[$day][$hour] = $subject;
+                $used_slots[$key] = true;
+                if ($is_staff_subject) markStaffOccupied($subject['staff_id'], $day, $hour);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 $remaining_hours[$subject['id']]--;
                 $placed = true;
                 break;
@@ -854,6 +1293,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
     }
 
     // STEP 3.5: Force fill remaining subject hours
+<<<<<<< HEAD
     // If we have remaining hours, we MUST place them, even if it violates consecutive rules somewhat
     foreach ($remaining_hours as $subject_id => $hours_left) {
         if ($hours_left <= 0)
@@ -873,10 +1313,23 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         // FIXED SUBJECTS (Common/Allied) were fully placed in STEP 0 — skip force-fill for them
         if ($subject['type'] === 'Common' || $subject['type'] === 'Allied')
             continue;
+=======
+    foreach ($remaining_hours as $subject_id => $hours_left) {
+        if ($hours_left <= 0) continue;
+        $subject = null;
+        foreach ($subjects as $s) {
+            if ($s['id'] == $subject_id) {
+                $subject = $s; break;
+            }
+        }
+        if (!$subject) continue;
+        if ($subject['type'] === 'Common' || $subject['type'] === 'Allied') continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 
         while ($remaining_hours[$subject_id] > 0) {
             $placed = false;
             $is_staff_subject_ff = isset($subject['staff_id']);
+<<<<<<< HEAD
             foreach ($shuffled_days as $day) {
                 if ($placed)
                     break;
@@ -914,17 +1367,43 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                     if ($subject['type'] === 'Lab') {
                         markLabSlotOccupied($day, $hour, $shift_group);
                     }
+=======
+            
+            foreach ($shuffled_days as $day) {
+                if ($placed) break;
+                foreach ($hours as $hour) {
+                    $key = $day . '_' . $hour;
+                    if (isset($used_slots[$key]) || $timetable[$day][$hour] !== null) continue;
+                    if (isNMEReserved($semester, $day, $hour)) continue;
+                    if ($is_staff_subject_ff && !isStaffAvailable($subject['staff_id'], $day, $hour)) continue;
+
+                    if ($is_staff_subject_ff) {
+                        $hours_today_ff = getStaffHoursOnDay($timetable, $subject['staff_id'], $day);
+                        if ($hours_today_ff >= 4) continue;
+                    }
+                    if ($subject['type'] === 'Lab' && !isLabSlotAvailable($day, $hour, $shift_group)) continue;
+
+                    $timetable[$day][$hour] = $subject;
+                    $used_slots[$key] = true;
+                    if (isset($subject['staff_id'])) markStaffOccupied($subject['staff_id'], $day, $hour);
+                    if ($subject['type'] === 'Lab') markLabSlotOccupied($day, $hour, $shift_group);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     $remaining_hours[$subject_id]--;
                     $placed = true;
                     break;
                 }
             }
+<<<<<<< HEAD
             if (!$placed)
                 break; // Could not place even with force fill
+=======
+            if (!$placed) break; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         }
     }
 
     // STEP 3.6: INTELLIGENT SWAPPING
+<<<<<<< HEAD
     // If we still have remaining hours, it means available slots are blocked by staff unavailability.
     // We try to find a slot where our staff IS free, but it's occupied by another subject.
     // If that other subject can move to one of our empty slots, we SWAP them.
@@ -942,13 +1421,25 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
         }
         if (!$subject)
             continue;
+=======
+    foreach ($remaining_hours as $subject_id => $hours_left) {
+        if ($hours_left <= 0) continue;
+        $subject = null;
+        foreach ($subjects as $s) {
+            if ($s['id'] == $subject_id) { $subject = $s; break; }
+        }
+        if (!$subject) continue;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 
         $swap_attempts = 0;
         while ($remaining_hours[$subject_id] > 0 && $swap_attempts < 50) {
             $swap_attempts++;
             $swapped = false;
+<<<<<<< HEAD
 
             // Identify Empty Slots
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             $empty_slots = [];
             foreach ($shuffled_days as $day) {
                 foreach ($hours as $hour) {
@@ -958,6 +1449,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                 }
             }
 
+<<<<<<< HEAD
             if (empty($empty_slots))
                 break; // No room to swap into
 
@@ -1008,6 +1500,32 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                             markLabSlotOccupied($e_day, $e_hour, $shift_group);
 
                         // 2. Free up Target Slot
+=======
+            if (empty($empty_slots)) break; 
+
+            foreach ($shuffled_days as $target_day) {
+                if ($swapped) break;
+                foreach ($hours as $target_hour) {
+                    if ($timetable[$target_day][$target_hour] === null) continue;
+                    if (isNMEReserved($semester, $target_day, $target_hour)) continue;
+                    if (isset($subject['staff_id']) && !isStaffAvailable($subject['staff_id'], $target_day, $target_hour)) continue;
+                    if ($subject['type'] === 'Lab' && !isLabSlotAvailable($target_day, $target_hour, $shift_group)) continue;
+
+                    $occupant = $timetable[$target_day][$target_hour];
+                    if (!$occupant || $occupant['type'] === 'NME' || $occupant['type'] === 'Common' || $occupant['type'] === 'Allied') continue;
+
+                    foreach ($empty_slots as $empty) {
+                        $e_day = $empty['day'];
+                        $e_hour = $empty['hour'];
+                        if (isset($occupant['staff_id']) && !isStaffAvailable($occupant['staff_id'], $e_day, $e_hour)) continue;
+                        if ($occupant['type'] === 'Lab' && !isLabSlotAvailable($e_day, $e_hour, $shift_group)) continue;
+
+                        $timetable[$e_day][$e_hour] = $occupant;
+                        $used_slots[$e_day . '_' . $e_hour] = true;
+                        if (isset($occupant['staff_id'])) markStaffOccupied($occupant['staff_id'], $e_day, $e_hour);
+                        if ($occupant['type'] === 'Lab') markLabSlotOccupied($e_day, $e_hour, $shift_group);
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                         if (isset($occupant['staff_id'])) {
                             unset($GLOBALS['staff_schedule'][$target_day . '_' . $target_hour][$occupant['staff_id']]);
                         }
@@ -1015,6 +1533,7 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                             unset($GLOBALS['lab_schedule'][$shift_group][$target_day . '_' . $target_hour]);
                         }
 
+<<<<<<< HEAD
                         // 3. Place Us in Target
                         $timetable[$target_day][$target_hour] = $subject;
                         // $used_slots already true
@@ -1022,23 +1541,36 @@ function generateSingleAttempt($subjects, $days, $hours, $semester, $shift_group
                             markStaffOccupied($subject['staff_id'], $target_day, $target_hour);
                         if ($subject['type'] === 'Lab')
                             markLabSlotOccupied($target_day, $target_hour, $shift_group);
+=======
+                        $timetable[$target_day][$target_hour] = $subject;
+                        if (isset($subject['staff_id'])) markStaffOccupied($subject['staff_id'], $target_day, $target_hour);
+                        if ($subject['type'] === 'Lab') markLabSlotOccupied($target_day, $target_hour, $shift_group);
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
 
                         $remaining_hours[$subject_id]--;
                         $swapped = true;
                         break;
                     }
+<<<<<<< HEAD
                     if ($swapped)
                         break;
                 }
             }
             if (!$swapped)
                 break;
+=======
+                    if ($swapped) break;
+                }
+            }
+            if (!$swapped) break;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         }
     }
 
     return ['timetable' => $timetable];
 }
 
+<<<<<<< HEAD
 // Process each class
 while ($class = $classes->fetch_assoc()) {
     // Determine semester
@@ -1056,6 +1588,44 @@ while ($class = $classes->fetch_assoc()) {
     }
 
     // Determine program and shift group
+=======
+$classes = $conn->query($classes_query);
+$classes_array = [];
+while ($row = $classes->fetch_assoc()) {
+    $classes_array[] = $row;
+}
+
+$days = ['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'];
+$hours = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
+
+$global_max_attempts = 100;
+$valid_global_timetable = false;
+$best_timetables = null;
+
+for ($global_attempt = 1; $global_attempt <= $global_max_attempts; $global_attempt++) {
+    // Reset global state for each full attempt
+    $GLOBALS['staff_schedule'] = [];
+    $GLOBALS['lab_schedule'] = [];
+    
+    $timetables = [];
+    $local_has_gaps = false;
+
+    // Process each class
+    foreach ($classes_array as $class) {
+        if (strpos($class['name'], 'I ') === 0) {
+            $semester = $semester_filter == 'odd' ? 1 : 2;
+        }
+        elseif (strpos($class['name'], 'II ') === 0) {
+            $semester = $semester_filter == 'odd' ? 3 : 4;
+        }
+        elseif (strpos($class['name'], 'III ') === 0) {
+            $semester = $semester_filter == 'odd' ? 5 : 6;
+        }
+        else {
+            $semester = 1;
+        }
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
     $program = (strpos($class['name'], 'M.Sc') !== false) ? 'PG' : 'UG';
     if ($program === 'PG' || strpos($class['shift'], 'Shift 1') !== false) {
         $shift_group = 'shift1';
@@ -1064,7 +1634,11 @@ while ($class = $classes->fetch_assoc()) {
         $shift_group = 'shift2';
     }
 
+<<<<<<< HEAD
     $subjects_query = "SELECT * FROM subjects WHERE program = '$program' AND semester = $semester AND is_allocated = 1 ORDER BY 
+=======
+    $subjects_query = "SELECT * FROM subjects WHERE program = '$program' AND semester = $semester AND COALESCE(is_allocated, 1) = 1 ORDER BY 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         CASE 
             WHEN type = 'Core' THEN 1
             WHEN type = 'Lab' THEN 2
@@ -1076,10 +1650,15 @@ while ($class = $classes->fetch_assoc()) {
 
     $subjects = [];
     while ($subject = $subjects_result->fetch_assoc()) {
+<<<<<<< HEAD
         // Check for B.Sc shift-based allocation first
         $shift_key = null;
         if (strpos($class['name'], 'B.Sc') !== false) {
             // For B.Sc - check shift-specific keys
+=======
+        $shift_key = null;
+        if (strpos($class['name'], 'B.Sc') !== false) {
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             if (strpos($class['shift'], 'Shift 1') !== false) {
                 $shift_key = 'staff_shift1_' . $subject['id'];
             }
@@ -1088,6 +1667,7 @@ while ($class = $classes->fetch_assoc()) {
             }
         }
 
+<<<<<<< HEAD
         // Try shift key first, then fallback to standard key
         $base_staff_key = $shift_key ? $shift_key : 'staff_' . $subject['id'] . '_' . $class['id'];
 
@@ -1104,6 +1684,18 @@ while ($class = $classes->fetch_assoc()) {
             }
 
             // The first staff dropdown is natively named without the _1 suffix
+=======
+        $base_staff_key = $shift_key ? $shift_key : 'staff_' . $subject['id'] . '_' . $class['id'];
+        $staff_assigned = [];
+
+        for ($index = 1; $index <= 10; $index++) {
+            if ($shift_key) {
+                $check_key = $base_staff_key . '_' . $index;
+            } else {
+                $check_key = 'staff_' . $subject['id'] . '_' . $index;
+            }
+
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             if ($index === 1 && !isset($staff_allocations[$check_key]) && isset($staff_allocations[$base_staff_key])) {
                 $check_key = $base_staff_key;
             }
@@ -1125,12 +1717,16 @@ while ($class = $classes->fetch_assoc()) {
                 $staff_assigned[] = [
                     'staff_id' => $staff_allocations[$check_key],
                     'hours' => $assigned_hours,
+<<<<<<< HEAD
                     // Provide staff index natively so split classes don't conflict later
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                     'staff_index' => $index
                 ];
             }
         }
 
+<<<<<<< HEAD
         // Base Subject Short Name
         $subject['short_name'] = getShortName($subject['title'], $subject['type'], $semester);
 
@@ -1146,6 +1742,20 @@ while ($class = $classes->fetch_assoc()) {
                 $split_subject['base_id'] = $subject['id']; // Track real ID
                 if ($assignment['staff_index'] !== null) {
                     $split_subject['id'] = $subject['id'] . '_' . $assignment['staff_index']; // Make unique ID for internal tracking
+=======
+        $subject['short_name'] = getShortName($subject['title'], $subject['type'], $semester);
+
+        if (!empty($staff_assigned)) {
+            foreach ($staff_assigned as $assignment) {
+                if ($assignment['hours'] <= 0) continue; 
+
+                $split_subject = $subject; 
+                $split_subject['hours_per_week'] = $assignment['hours'];
+                $split_subject['staff_index'] = $assignment['staff_index'];
+                $split_subject['base_id'] = $subject['id']; 
+                if ($assignment['staff_index'] !== null) {
+                    $split_subject['id'] = $subject['id'] . '_' . $assignment['staff_index']; 
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
                 }
 
                 $staff_id = $assignment['staff_id'];
@@ -1160,20 +1770,31 @@ while ($class = $classes->fetch_assoc()) {
             }
         }
         else {
+<<<<<<< HEAD
             // No staff assigned (either unmarked, or marked "No Staff Required")
             // Make sure these are still pushed into the pool so they appear on the timetable
             $subject['base_id'] = $subject['id'];
             $subject['staff_index'] = null;
             // Name mapping (staff omitted intentionally)
+=======
+            $subject['base_id'] = $subject['id'];
+            $subject['staff_index'] = null;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
             $subjects[] = $subject;
         }
     }
 
+<<<<<<< HEAD
     // Generate timetable — only returns gap-free result, or null if impossible
     $timetable = generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, 300);
 
     if ($timetable !== null) {
         // Gap-free result
+=======
+    $timetable = generateTimetableForClass($class, $subjects, $days, $hours, $semester, $shift_group, 300);
+
+    if ($timetable !== null) {
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $timetables[] = [
             'class'    => $class,
             'semester' => $semester,
@@ -1181,13 +1802,17 @@ while ($class = $classes->fetch_assoc()) {
         ];
     }
     else {
+<<<<<<< HEAD
         // No gap-free arrangement found — record with warning flag
+=======
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
         $timetables[] = [
             'class'    => $class,
             'semester' => $semester,
             'timetable'=> null,
             'has_gaps' => true,
         ];
+<<<<<<< HEAD
     }
 }
 
@@ -1199,3 +1824,76 @@ $_SESSION['current_page'] = 'generated_timetable_view';
 // Redirect to the new view page
 header("Location: generated_timetable_view.php");
 exit;
+=======
+        $local_has_gaps = true;
+    }
+    } // End foreach ($classes_array as $class)
+
+    // Verify global staff constraints
+    $constraint_failed = false;
+    
+    if (!$local_has_gaps) {
+        $staff_total_hours = [];
+        $staff_daily_presence = [];
+        $staff_hour_slots = []; // Tracks if a staff member is double-booked across classes
+        
+        foreach ($timetables as $tt) {
+            if (!$tt['timetable']) continue;
+            foreach ($tt['timetable'] as $day => $day_hours) {
+                foreach ($day_hours as $hour => $subject) {
+                    if ($subject !== null && isset($subject['staff_id'])) {
+                        $sid = $subject['staff_id'];
+                        $slot_key = $day . '_' . $hour;
+
+                        // Check for global cross-class collision
+                        if (!isset($staff_hour_slots[$sid])) {
+                            $staff_hour_slots[$sid] = [];
+                        }
+                        if (isset($staff_hour_slots[$sid][$slot_key])) {
+                            $constraint_failed = true;
+                            break 3; // Break out of the 3 nested loops immediately
+                        }
+                        $staff_hour_slots[$sid][$slot_key] = true;
+
+                        if (!isset($staff_total_hours[$sid])) {
+                            $staff_total_hours[$sid] = 0;
+                            $staff_daily_presence[$sid] = [];
+                        }
+                        $staff_total_hours[$sid]++;
+                        $staff_daily_presence[$sid][$day] = true;
+                    }
+                }
+            }
+        }
+        
+        // Ensure staff with >= 6 hours have at least 1 hr on all 6 working days
+        foreach ($staff_total_hours as $sid => $total) {
+            if ($total >= 6) {
+                if (count($staff_daily_presence[$sid]) < 6) {
+                    $constraint_failed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!$local_has_gaps && !$constraint_failed) {
+        $valid_global_timetable = true;
+        $best_timetables = $timetables;
+        break;
+    }
+} // End global_attempt loop
+
+if ($valid_global_timetable) {
+    $_SESSION['current_timetables'] = $best_timetables;
+} else {
+    $_SESSION['current_timetables'] = [];
+    $_SESSION['generation_error'] = "Could not generate a full timetable satisfying all constraints (e.g., no staff double-bookings, daily minimum hours) after $global_max_attempts attempts.";
+}
+
+$_SESSION['semester_filter'] = $semester_filter;
+$_SESSION['current_page'] = 'generated_timetable_view';
+
+header("Location: generated_timetable_view.php");
+exit;
+>>>>>>> 0f15a3a (Updated Timetable Generation Project)
