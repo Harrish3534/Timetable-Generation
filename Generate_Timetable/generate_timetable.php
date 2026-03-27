@@ -10,6 +10,24 @@ $semester_filter = isset($_GET['semester']) ? $_GET['semester'] : (isset($_SESSI
 // Get staff allocations from session
 $staff_allocations = isset($_SESSION['staff_allocations']) ? $_SESSION['staff_allocations'] : [];
 
+// Handle regenerating (cycling through already generated fallbacks)
+if (isset($_GET['cycle']) && $_GET['cycle'] == 1 && isset($_SESSION['timetable_collection']) && !empty($_SESSION['timetable_collection'])) {
+    $collection = $_SESSION['timetable_collection'];
+    $current_index = isset($_SESSION['timetable_index']) ? $_SESSION['timetable_index'] : 0;
+    
+    // Move to next timetable in the collection (wrap around)
+    $next_index = ($current_index + 1) % count($collection);
+    
+    $_SESSION['timetable_index'] = $next_index;
+    $_SESSION['current_timetables'] = $collection[$next_index]['timetables'];
+    $_SESSION['generation_warning'] = $collection[$next_index]['warning'];
+    $_SESSION['generation_success'] = isset($collection[$next_index]['is_success']) ? $collection[$next_index]['is_success'] : false;
+    unset($_SESSION['generation_error']);
+    
+    header("Location: generated_timetable_view.php");
+    exit;
+}
+
 // Get all classes ordered properly
 $classes_query = "SELECT * FROM classes ORDER BY 
     CASE 
@@ -34,8 +52,12 @@ $staff_schedule = [];
 $lab_schedule = [];
 
 // Function to get short name for subject
-function getShortName($title, $type, $semester = null)
+function getShortName($title, $type, $semester = null, $subject = null)
 {
+    if ($subject && !empty($subject['short_name'])) {
+        return strtoupper($subject['short_name']);
+    }
+
     if ($type === 'Allied')
         return 'ALLIED';
     if ($type === 'NME')
@@ -1016,9 +1038,11 @@ while ($row = $classes->fetch_assoc()) {
 $days = ['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'];
 $hours = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
 
-$global_max_attempts = 100;
-$valid_global_timetable = false;
-$best_timetables = null;
+$global_max_attempts = 2500;
+
+$valid_global_timetables_collection = [];
+$fallback_timetables_collection = [];
+$seen_timetable_hashes = [];
 
 for ($global_attempt = 1; $global_attempt <= $global_max_attempts; $global_attempt++) {
     // Reset global state for each full attempt
@@ -1163,8 +1187,13 @@ for ($global_attempt = 1; $global_attempt <= $global_max_attempts; $global_attem
 
     // Verify global staff constraints
     $constraint_failed = false;
+    $failure_reason = "";
+    $current_violations = 0;
+    $six_day_failure_details = [];
     
-    if (!$local_has_gaps) {
+    if ($local_has_gaps) {
+        $failure_reason = "Gaps exist in one or more class timetables.";
+    } else {
         $staff_total_hours = [];
         $staff_daily_presence = [];
         $staff_hour_slots = []; // Tracks if a staff member is double-booked across classes
@@ -1183,6 +1212,9 @@ for ($global_attempt = 1; $global_attempt <= $global_max_attempts; $global_attem
                         }
                         if (isset($staff_hour_slots[$sid][$slot_key])) {
                             $constraint_failed = true;
+                            $cls_name = $tt['class']['name'];
+                            $sname = isset($subject['staff_name']) ? $subject['staff_name'] : "ID $sid";
+                            $failure_reason = "Staff '$sname' is double-booked on $day at $hour (found in class $cls_name).";
                             break 3; // Break out of the 3 nested loops immediately
                         }
                         $staff_hour_slots[$sid][$slot_key] = true;
@@ -1198,29 +1230,262 @@ for ($global_attempt = 1; $global_attempt <= $global_max_attempts; $global_attem
             }
         }
         
-        // Ensure staff with >= 6 hours have at least 1 hr on all 6 working days
-        foreach ($staff_total_hours as $sid => $total) {
-            if ($total >= 6) {
-                if (count($staff_daily_presence[$sid]) < 6) {
-                    $constraint_failed = true;
-                    break;
+        if (!$constraint_failed) {
+            // Ensure staff with >= 6 hours have at least 1 hr on all 6 working days
+            foreach ($staff_total_hours as $sid => $total) {
+                if ($total >= 6) {
+                    $days_present = count($staff_daily_presence[$sid]);
+                    if ($days_present < 6) {
+                        $current_violations++;
+                        $constraint_failed = true; // Technically failed the strict constraint
+                        
+                        $missed = implode(', ', array_diff(['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'], array_keys($staff_daily_presence[$sid])));
+                        $sres = $conn->query("SELECT name FROM staff WHERE id=$sid");
+                        $srow = $sres->fetch_assoc();
+                        $sname = $srow ? $srow['name'] : "ID $sid";
+                        $six_day_failure_details[] = "'$sname' (misses $missed)";
+                    }
                 }
+            }
+            if ($current_violations > 0) {
+                $failure_reason = "6-Day rule violated for: " . implode('; ', $six_day_failure_details);
             }
         }
     }
 
     if (!$local_has_gaps && !$constraint_failed) {
-        $valid_global_timetable = true;
-        $best_timetables = $timetables;
-        break;
+        // Hash timetable to ensure uniqueness
+        $hashStr = "";
+        foreach ($timetables as $tt) {
+            foreach ($tt['timetable'] as $day => $day_hours) {
+                foreach ($day_hours as $hour => $subj) {
+                    if ($subj) $hashStr .= $day.$hour.$subj['id'].(isset($subj['staff_id']) ? $subj['staff_id'] : '')."|";
+                }
+            }
+        }
+        $h = md5($hashStr);
+        if (!isset($seen_timetable_hashes[$h])) {
+            $seen_timetable_hashes[$h] = true;
+            $valid_global_timetables_collection[] = [
+                'timetables' => $timetables,
+                'warning' => '✅ Timetable was generated successfully! All constraints (including the 6-day distribution rule) are fully satisfied.',
+                'is_success' => true
+            ];
+        }
+        // No longer breaking at 12; collect all possible valid timetables
+
+    } else if ($failure_reason || $local_has_gaps) {
+        $hashStr = "";
+        foreach ($timetables as $tt) {
+            if ($tt['timetable']) {
+                foreach ($tt['timetable'] as $day => $day_hours) {
+                    foreach ($day_hours as $hour => $subj) {
+                        if ($subj) $hashStr .= $day.$hour.$subj['id'].(isset($subj['staff_id']) ? $subj['staff_id'] : '')."|";
+                    }
+                }
+            }
+        }
+        $h = md5($hashStr);
+        if (!isset($seen_timetable_hashes[$h])) {
+            $seen_timetable_hashes[$h] = true;
+            
+            $severity = 0;
+            if ($local_has_gaps) $severity += 10000;
+            if ($constraint_failed) $severity += 1000;
+            $severity += $current_violations;
+            
+            $advisory_lines = [];
+            if ($local_has_gaps || $constraint_failed) {
+                 $advisory_lines[] = "The timetable was generated but constraints were not fully satisfied.";
+                 $advisory_lines[] = $failure_reason ? $failure_reason : "Gaps exist.";
+                 $warning = implode(" ", $advisory_lines);
+            } else {
+                 $advisory_lines[] = "The timetable was generated but the 6-day distribution rule could not be fully satisfied.";
+                 $advisory_lines[] = $failure_reason;
+                 $advisory_lines[] = "💡 To fix: consider adding more subjects or redistributing hours so affected staff appear on every working day.";
+                 $warning = implode(" ", $advisory_lines);
+            }
+
+            $fallback_timetables_collection[] = [
+                'severity' => $severity,
+                'timetables' => $timetables,
+                'warning' => $warning
+            ];
+        }
     }
+    
+    $last_attempt_reason = $failure_reason;
 } // End global_attempt loop
 
-if ($valid_global_timetable) {
-    $_SESSION['current_timetables'] = $best_timetables;
+// Sort Fallbacks by severity (best first)
+usort($fallback_timetables_collection, function($a, $b) {
+    $sevA = isset($a['severity']) ? $a['severity'] : ($a['violations'] ?? 0);
+    $sevB = isset($b['severity']) ? $b['severity'] : ($b['violations'] ?? 0);
+    return $sevA <=> $sevB;
+});
+
+$final_collection = [];
+foreach ($valid_global_timetables_collection as $vt) {
+    $final_collection[] = $vt;
+}
+
+$had_valid = count($final_collection) > 0;
+
+foreach ($fallback_timetables_collection as $ft) {
+    $warning_msg = $ft['warning'];
+    if (!$had_valid) {
+        $warning_msg = "<strong>No possibilities with satisfying full conditions like that.</strong><br>" . $warning_msg;
+    }
+    $final_collection[] = [
+        'timetables' => $ft['timetables'],
+        'warning' => $warning_msg,
+        'is_success' => false
+    ];
+}
+
+// Ensure at least 5 possibilities are shown
+if (count($final_collection) > 0 && count($final_collection) < 5) {
+    $base_count = count($final_collection);
+    $idx = 0;
+    while(count($final_collection) < 5) {
+        $final_collection[] = $final_collection[$idx];
+        $idx = ($idx + 1) % $base_count;
+    }
+}
+
+if (count($final_collection) > 0) {
+    $_SESSION['timetable_collection'] = $final_collection;
+    $_SESSION['timetable_index'] = 0;
+    
+    $_SESSION['current_timetables'] = $final_collection[0]['timetables'];
+    $_SESSION['generation_warning'] = $final_collection[0]['warning'];
+    $_SESSION['generation_success'] = isset($final_collection[0]['is_success']) ? $final_collection[0]['is_success'] : false;
+    unset($_SESSION['generation_error']);
 } else {
-    $_SESSION['current_timetables'] = [];
-    $_SESSION['generation_error'] = "Could not generate a full timetable satisfying all constraints (e.g., no staff double-bookings, daily minimum hours) after $global_max_attempts attempts.";
+    // All attempts failed (likely due to gaps or double-booking across classes).
+    // Run one final best-effort pass without the strict no-gap requirement,
+    // so we still show SOMETHING to the user.
+
+    $GLOBALS['staff_schedule'] = [];
+    $GLOBALS['lab_schedule'] = [];
+    $best_effort_timetables = [];
+    $advisory_parts = [];
+
+    $classes = $conn->query($classes_query);
+    $classes_array_final = [];
+    while ($row = $classes->fetch_assoc()) {
+        $classes_array_final[] = $row;
+    }
+
+    foreach ($classes_array_final as $class) {
+        if (strpos($class['name'], 'I ') === 0)       $semester = $semester_filter == 'odd' ? 1 : 2;
+        elseif (strpos($class['name'], 'II ') === 0)  $semester = $semester_filter == 'odd' ? 3 : 4;
+        elseif (strpos($class['name'], 'III ') === 0) $semester = $semester_filter == 'odd' ? 5 : 6;
+        else                                           $semester = 1;
+
+        $program    = (strpos($class['name'], 'M.Sc') !== false) ? 'PG' : 'UG';
+        $shift_group = ($program === 'PG' || strpos($class['shift'], 'Shift 1') !== false) ? 'shift1' : 'shift2';
+
+        $subjects_query_f = "SELECT * FROM subjects WHERE program = '$program' AND semester = $semester AND COALESCE(is_allocated, 1) = 1 ORDER BY CASE WHEN type = 'Core' THEN 1 WHEN type = 'Lab' THEN 2 WHEN type = 'Allied' THEN 3 WHEN type = 'Common' THEN 4 ELSE 5 END, id";
+        $subjects_result_f = $conn->query($subjects_query_f);
+        $subjects_f = [];
+        while ($subject = $subjects_result_f->fetch_assoc()) {
+            $shift_key = null;
+            if (strpos($class['name'], 'B.Sc') !== false) {
+                $shift_key = (strpos($class['shift'], 'Shift 1') !== false)
+                    ? 'staff_shift1_' . $subject['id']
+                    : 'staff_shift2_' . $subject['id'];
+            }
+            $base_staff_key = $shift_key ? $shift_key : 'staff_' . $subject['id'] . '_' . $class['id'];
+            $staff_assigned_f = [];
+            for ($index = 1; $index <= 10; $index++) {
+                $check_key = $shift_key ? $base_staff_key . '_' . $index : 'staff_' . $subject['id'] . '_' . $index;
+                if ($index === 1 && !isset($staff_allocations[$check_key]) && isset($staff_allocations[$base_staff_key]))
+                    $check_key = $base_staff_key;
+                if (isset($staff_allocations[$check_key]) && !empty($staff_allocations[$check_key])) {
+                    $hours_key = $shift_key ? 'hours_' . $shift_group . '_' . $subject['id'] . '_' . $index : 'hours_' . $subject['id'] . '_' . $index;
+                    if (isset($_SESSION['hours_changes'][$hours_key]))
+                        $assigned_hours = intval($_SESSION['hours_changes'][$hours_key]);
+                    else if ($index === 1) {
+                        $base_hours_key = $shift_key ? 'hours_' . $shift_group . '_' . $subject['id'] : 'hours_' . $subject['id'];
+                        $assigned_hours = isset($_SESSION['hours_changes'][$base_hours_key]) ? intval($_SESSION['hours_changes'][$base_hours_key]) : intval($subject['hours_per_week']);
+                    } else $assigned_hours = 0;
+                    $staff_assigned_f[] = ['staff_id' => $staff_allocations[$check_key], 'hours' => $assigned_hours, 'staff_index' => $index];
+                }
+            }
+            $subject['short_name'] = getShortName($subject['title'], $subject['type'], $semester);
+            if (!empty($staff_assigned_f)) {
+                foreach ($staff_assigned_f as $assignment) {
+                    if ($assignment['hours'] <= 0) continue;
+                    $split = $subject;
+                    $split['hours_per_week'] = $assignment['hours'];
+                    $split['staff_index']    = $assignment['staff_index'];
+                    $split['base_id']        = $subject['id'];
+                    $split['id']             = $subject['id'] . '_' . $assignment['staff_index'];
+                    $staff_res_f = $conn->query("SELECT name, short_code FROM staff WHERE id=" . intval($assignment['staff_id']));
+                    if ($staff_res_f && $sr = $staff_res_f->fetch_assoc()) {
+                        $split['staff_name']  = $sr['name'];
+                        $split['staff_code']  = $sr['short_code'];
+                        $split['staff_id']    = $assignment['staff_id'];
+                    }
+                    $subjects_f[] = $split;
+                }
+            } else {
+                $subject['base_id']    = $subject['id'];
+                $subject['staff_index'] = null;
+                $subjects_f[] = $subject;
+            }
+        }
+
+        // Use single attempt (best-effort, may have gaps or conflicts)
+        $result_f = generateSingleAttempt($subjects_f, $days, $hours, $semester, $shift_group,
+            isset($_SESSION['current_class_index_map'][$class['id']]) ? $_SESSION['current_class_index_map'][$class['id']] : 0);
+        $best_effort_timetables[] = ['class' => $class, 'semester' => $semester, 'timetable' => $result_f['timetable'], 'has_gaps' => true];
+    }
+
+    // Collect advisory info from the last failure reason
+    $advisory_parts[] = "⚠️ A fully constraint-satisfying timetable could not be generated after $global_max_attempts attempts.";
+    if (!empty($last_attempt_reason)) {
+        // Parse reason to give actionable advice
+        if (strpos($last_attempt_reason, 'double-booked') !== false) {
+            // Extract staff ID
+            preg_match('/Staff ID (\d+) is double-booked on (\S+ \S+) at (\S+ \S+).*class (.+)\./', $last_attempt_reason, $m);
+            if (!empty($m)) {
+                $dbl_sid = intval($m[1]);
+                $dbl_day = $m[2]; $dbl_hr = $m[3]; $dbl_cls = $m[4];
+                $sres = $conn->query("SELECT name FROM staff WHERE id=$dbl_sid");
+                $sname = ($sres && $sr = $sres->fetch_assoc()) ? $sr['name'] : "Staff #$dbl_sid";
+                $advisory_parts[] = "The constraint that could not be satisfied: $sname is scheduled in two different classes at $dbl_day $dbl_hr (conflict in $dbl_cls).";
+                $advisory_parts[] = "💡 To fix: assign a different staff member to one of the conflicting subjects, or reduce hours for $sname in one class.";
+            } else {
+                $advisory_parts[] = "Reason: $last_attempt_reason";
+                $advisory_parts[] = "💡 To fix: check if any staff member is allocated to two subjects in different classes at the same time slot. Try reassigning to a different staff.";
+            }
+        } elseif (strpos($last_attempt_reason, '6-Day rule') !== false) {
+            $advisory_parts[] = "Reason: $last_attempt_reason";
+            $advisory_parts[] = "💡 To fix: add at least one hour of work per day for the listed staff, or spread their subject allocations across more classes.";
+        } elseif (strpos($last_attempt_reason, 'Gaps exist') !== false) {
+            $advisory_parts[] = "Gaps remain in the timetable because there are not enough available slots for all subjects.";
+            $advisory_parts[] = "💡 To fix: review total subject hours per class — they must sum to 30 for a complete timetable.";
+        } else {
+            $advisory_parts[] = "Reason: $last_attempt_reason";
+            $advisory_parts[] = "💡 Small adjustments to staff allocation or subject hours may resolve the conflict.";
+        }
+    }
+
+    $warning_msg = implode(" ", $advisory_parts);
+    $_SESSION['timetable_collection'] = [
+        [
+            'timetables' => $best_effort_timetables,
+            'warning' => $warning_msg
+        ]
+    ];
+    $_SESSION['timetable_index'] = 0;
+
+    $_SESSION['current_timetables'] = $best_effort_timetables;
+    $_SESSION['generation_warning'] = $warning_msg;
+    $_SESSION['generation_success'] = false;
+    unset($_SESSION['generation_error']);
 }
 
 $_SESSION['semester_filter'] = $semester_filter;
@@ -1228,3 +1493,4 @@ $_SESSION['current_page'] = 'generated_timetable_view';
 
 header("Location: generated_timetable_view.php");
 exit;
+

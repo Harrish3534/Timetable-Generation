@@ -44,7 +44,7 @@ if (!isset($_SESSION['tt_backup'][$id])) {
 
 // Load subjects grouped by class semester for the edit dropdown
 $all_subjects = [];
-$sres = $conn->query("SELECT id, title, type, program, semester FROM subjects ORDER BY semester, sort_order, id");
+$sres = $conn->query("SELECT id, title, type, program, semester, hours_per_week FROM subjects ORDER BY semester, sort_order, id");
 while ($sr = $sres->fetch_assoc())
     $all_subjects[] = $sr;
 
@@ -544,6 +544,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                                             data-day="<?php echo htmlspecialchars($dy); ?>"
                                             data-hours="<?php echo htmlspecialchars($cell['hours']); ?>"
                                             data-staff-id="<?php echo $slot ? ($slot['staff_id'] ?? '') : ''; ?>"
+                                            data-subject-id="<?php echo $slot ? ($slot['subject_id'] ?? '') : ''; ?>"
                                             data-staff-name="<?php echo htmlspecialchars($slot ? ($slot['staff_name'] ?? '') : ''); ?>"
                                             data-is-manual="<?php
                                                 $is_manual_slot = $slot && (
@@ -680,7 +681,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                 <option value="">— Empty —</option>
                 <?php foreach ($all_subjects as $s): ?>
                     <option value="<?php echo $s['id']; ?>" data-title="<?php echo htmlspecialchars($s['title']); ?>"
-                        data-type="<?php echo htmlspecialchars($s['type']); ?>" data-sem="<?php echo $s['semester']; ?>" data-program="<?php echo htmlspecialchars($s['program']); ?>">
+                        data-type="<?php echo htmlspecialchars($s['type']); ?>" data-sem="<?php echo $s['semester']; ?>" data-program="<?php echo htmlspecialchars($s['program']); ?>" data-total-hours="<?php echo $s['hours_per_week'] ?? 0; ?>">
                         [Sem<?php echo $s['semester']; ?>     <?php echo htmlspecialchars($s['type']); ?>]
                         <?php echo htmlspecialchars($s['title']); ?>
                     </option>
@@ -1129,19 +1130,73 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             document.getElementById('edit-class-id').value = classId;
             document.getElementById('edit-semester').value = sem;
             
-            // Filter subject options by semester and program
+            // Pre-select current subject and staff from the clicked cell
+            const currentSubjectId = el.getAttribute('data-subject-id') || '';
+            const currentStaffId = el.getAttribute('data-staff-id') || '';
+
+            // Calculate assigned hours for each subject in this class
+            // Exclude the current slot from the count so the current slot's own subject shows correctly
+            const assignedHours = {};
+            document.querySelectorAll('.cell-content').forEach(c => {
+                if (c.getAttribute('data-class-id') !== classId) return;
+                if (c.classList.contains('cell-empty')) return;
+                const rawSid = c.getAttribute('data-subject-id');
+                if (!rawSid) return;
+                // Strip split-staff suffix (e.g. "5_1" → "5") to match subjects table base ID
+                const sid = rawSid.toString().split('_')[0];
+                const hrs = c.getAttribute('data-hours') ? c.getAttribute('data-hours').split(',').length : 1;
+                assignedHours[sid] = (assignedHours[sid] || 0) + hrs;
+            });
+
+            // Filter subject options by semester/program and update hour count labels
             const subjSel = document.getElementById('edit-subject');
             Array.from(subjSel.options).forEach(opt => {
                 const optSem = opt.getAttribute('data-sem');
                 const optProg = opt.getAttribute('data-program');
+                const optId = opt.value;
+                const totalHours = parseInt(opt.getAttribute('data-total-hours') || 0);
+                
                 if (!optSem) {
+                    // "Empty" option - always show
                     opt.style.display = '';
-                } else {
-                    opt.style.display = (optSem == sem && optProg == prog) ? '' : 'none';
+                    return;
+                }
+
+                const visible = (optSem == sem && optProg == prog);
+                opt.style.display = visible ? '' : 'none';
+
+                if (optId) {
+                    // Ensure we always use clean original text (never accumulate prefixes)
+                    if (!opt.hasAttribute('data-original-text')) {
+                        opt.setAttribute('data-original-text', opt.textContent.trim());
+                    } else {
+                        // Check if data-original-text already has [x/y] prefix and strip it
+                        const raw = opt.getAttribute('data-original-text').trim();
+                        const stripped = raw.replace(/^\[\d+\/\d+\]\s*/, '');
+                        opt.setAttribute('data-original-text', stripped);
+                    }
+                    const originalText = opt.getAttribute('data-original-text');
+                    const assigned = assignedHours[optId] || 0;
+                    opt.textContent = `[${assigned}/${totalHours}] ` + originalText;
+
+                    if (assigned >= totalHours && totalHours > 0) {
+                        opt.style.color = '#dc2626';
+                        opt.style.fontWeight = 'bold';
+                    } else {
+                        opt.style.color = '';
+                        opt.style.fontWeight = '';
+                    }
                 }
             });
-            subjSel.value = '';
-            subjSel.dispatchEvent(new Event('change'));
+
+            // Set subject value - strip split-staff suffix (e.g. "5_1" → "5") to match subjects table ID
+            const baseSubjectId = currentSubjectId ? currentSubjectId.toString().split('_')[0] : '';
+            subjSel.value = baseSubjectId;
+
+            // Populate staff dropdown based on selected subject and pre-select current staff
+            const staffSel = document.getElementById('edit-staff');
+            staffSel.value = currentStaffId;
+
 
             // Find which staff are busy at this slot's day + hours
             const day = el.getAttribute('data-day');
@@ -1163,7 +1218,6 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
             });
 
             // Colour staff dropdown options: red for busy, normal for free
-            const staffSel = document.getElementById('edit-staff');
             Array.from(staffSel.options).forEach(opt => {
                 const valStr = opt.value ? String(opt.value) : '';
                 if (busyStaffIds.has(valStr)) {
@@ -1305,6 +1359,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                             if (subjectId) {
                                 cellEl.classList.remove('cell-empty');
                                 cellEl.innerHTML = `${data.rendered_short_name || subjectTitle}<br><small>${staffCode ? '(' + staffCode + ')' : ''}</small>`;
+                                cellEl.setAttribute('data-subject-id', subjectId);
                                 cellEl.setAttribute('data-staff-id', staffId);
                                 cellEl.setAttribute('data-staff-name', staffName);
                                 // Update lab-cell class based on subject type
@@ -1317,6 +1372,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                                 cellEl.classList.add('cell-empty');
                                 cellEl.classList.remove('lab-cell');
                                 cellEl.innerHTML = '<span style="font-size:10px;">-</span>';
+                                cellEl.setAttribute('data-subject-id', '');
                                 cellEl.setAttribute('data-staff-id', '');
                                 cellEl.setAttribute('data-staff-name', '');
                             }
@@ -1349,6 +1405,7 @@ $day_bg = ['I DAY' => '#fff9c4', 'II DAY' => '#e8f5e9', 'III DAY' => '#e3f2fd', 
                             cellEl.classList.add('cell-empty');
                             cellEl.classList.remove('lab-cell', 'lab-group-clash', 'clash-state');
                             cellEl.innerHTML = '<span style="font-size:10px;">-</span>';
+                            cellEl.setAttribute('data-subject-id', '');
                             cellEl.setAttribute('data-staff-id', '');
                             cellEl.setAttribute('data-staff-name', '');
                         }

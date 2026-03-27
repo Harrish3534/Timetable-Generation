@@ -10,8 +10,14 @@ $semester_filter = isset($_SESSION['semester_filter']) ? $_SESSION['semester_fil
 
 
 $generation_error = isset($_SESSION['generation_error']) ? $_SESSION['generation_error'] : null;
-unset($_SESSION['generation_error']);
 
+$generation_warning = isset($_SESSION['generation_warning']) ? $_SESSION['generation_warning'] : null;
+
+$generation_success = isset($_SESSION['generation_success']) ? $_SESSION['generation_success'] : false;
+
+// Get collection info
+$collection_count = isset($_SESSION['timetable_collection']) ? count($_SESSION['timetable_collection']) : 0;
+$current_index = isset($_SESSION['timetable_index']) ? $_SESSION['timetable_index'] + 1 : 1;
 
 $days = ['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'];
 $hours = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
@@ -156,7 +162,16 @@ if ($has_timetable) {
     </div>
 
     <div class="content">
+
+
         <?php if ($has_timetable): ?>
+
+        <!-- Generation warning/success (shown above timetable) -->
+        <?php if ($generation_warning): ?>
+        <div class="warning-banner no-print" style="margin-bottom: 18px; <?php echo $generation_success ? 'background-color: #d1fae5; border-color: #10b981; color: #065f46;' : ''; ?>">
+            <?php echo nl2br($generation_warning); ?>
+        </div>
+        <?php endif; ?>
 
         <!-- Action buttons -->
         <div class="no-print" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -165,8 +180,10 @@ if ($has_timetable) {
             <button onclick="openSaveDialog()" class="btn btn-primary" style="background:#7c3aed; border-color:#7c3aed;">💾 Save Timetable</button>
             <button onclick="window.location.href='timetable.php?semester=<?php echo $semester_filter; ?>'"
                 class="btn btn-secondary">← Back to Setup</button>
-            <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>'"
-                class="btn btn-secondary">🔄 Regenerate</button>
+            
+            <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>&cycle=1'"
+                class="btn btn-secondary" style="background:#f59e0b; border-color:#f59e0b; color:white;">🔄 View Next Possibilities (<?php echo $current_index; ?>/<?php echo $collection_count; ?>)</button>
+
             <button onclick="window.location.href='staff_timetable.php?semester=<?php echo $semester_filter; ?>'"
                 class="btn btn-secondary">👥 Staff Timetable</button>
         </div>
@@ -425,11 +442,11 @@ if ($has_timetable) {
         <?php
     endforeach; ?>
 
+
+        <!-- Error Banner (only shown if no timetable at all) -->
         <?php
-else: ?>
+    else: ?>
 
-
-        <!-- Error Banner -->
         <?php if ($generation_error): ?>
         <div class="warning-banner no-print" style="background-color: #fef2f2; border-color: #ef4444; color: #991b1b;">
             ⚠️ <strong>Generation Failed:</strong> <?php echo htmlspecialchars($generation_error); ?>
@@ -452,3 +469,4 @@ endif; ?>
 </body>
 </html>
 <?php $conn->close(); ?>
+

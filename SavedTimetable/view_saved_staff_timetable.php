@@ -71,7 +71,7 @@ while ($slot = $slots_result->fetch_assoc()) {
 uksort($staff_schedules, function ($a, $b) use ($staff_info) {
     $custom_order = [
         'robert' => 1, 'chitra' => 2, 'devapriya' => 3, 'saraswathi' => 4,
-        'malathi' => 5, 'balamurugan' => 6, 'buvaneshwari' => 7, 'mahendran' => 8,
+        'malathi' => 5, 'balamurugan' => 6, 'buvaneswari' => 7, 'buvaneshwari' => 7, 'mahendran' => 8,
         'yuvaraj' => 9, 'rajasekar' => 10, 'rathika' => 11, 'anbazhagan' => 12
     ];
     

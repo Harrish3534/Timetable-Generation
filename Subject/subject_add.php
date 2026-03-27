@@ -8,6 +8,7 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = trim($_POST['title']);
     $sub_code = trim($_POST['sub_code']);
+    $short_name = trim($_POST['short_name']);
     $hours_per_week = intval($_POST['hours_per_week']);
     $type = $_POST['type'];
     $semester = intval($_POST['semester']);
@@ -18,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "All fields are required!";
     } else {
         $conn = getConnection();
-        $stmt = $conn->prepare("INSERT INTO subjects (title, sub_code, hours_per_week, type, semester, program, year) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssisssi", $title, $sub_code, $hours_per_week, $type, $semester, $program, $year);
+        $stmt = $conn->prepare("INSERT INTO subjects (title, sub_code, short_name, hours_per_week, type, semester, program, year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssisssi", $title, $sub_code, $short_name, $hours_per_week, $type, $semester, $program, $year);
 
         if ($stmt->execute()) {
             $success = "Subject added successfully! Redirecting...";
@@ -73,28 +74,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="nav-user">
             Welcome,
             <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-            <a href="../Logout/logout.php" class="logout-icon">?</a>
+            <a href="../Logout/logout.php" class="logout-icon">⎋</a>
         </div>
     </nav>
 
     <div class="tabs">
         <a href="../Staff/staff.php" class="tab">
-            <span class="tab-icon">??</span> Staff
+            <span class="tab-icon">👥</span> Staff
         </a>
         <a href="../Class/class.php" class="tab">
-            <span class="tab-icon">??</span> Classes
+            <span class="tab-icon">🎓</span> Classes
         </a>
         <a href="subject.php" class="tab active">
-            <span class="tab-icon">??</span> Subjects
+            <span class="tab-icon">📚</span> Subjects
         </a>
         <a href="../Generate_Timetable/redirect_timetable.php" class="tab">
-            <span class="tab-icon">??</span> Class Timetable
+            <span class="tab-icon">📅</span> Class Timetable
         </a>
         <a href="../Generate_Timetable/generated_timetable_view.php" class="tab">
-            <span class="tab-icon">??</span> Generated Timetable
+            <span class="tab-icon">📊</span> Generated Timetable
         </a>
         <a href="../SavedTimetable/saved_timetable.php" class="tab">
-            <span class="tab-icon">??</span> Saved Timetables
+            <span class="tab-icon">💾</span> Saved Timetables
         </a>
     </div>
 
@@ -120,9 +121,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <input type="text" id="title" name="title" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="sub_code">Subject Code</label>
-                    <input type="text" id="sub_code" name="sub_code" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sub_code">Subject Code</label>
+                        <input type="text" id="sub_code" name="sub_code" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="short_name">Short Code</label>
+                        <input type="text" id="short_name" name="short_name" placeholder="e.g. PCD, DSA" required>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -173,3 +181,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </body>
 
 </html>
+

@@ -9,13 +9,14 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = trim($_POST['title']);
     $sub_code = trim($_POST['sub_code']);
+    $short_name = trim($_POST['short_name']);
     $hours_per_week = intval($_POST['hours_per_week']);
     $type = $_POST['type'];
     $semester = intval($_POST['semester']);
     $program = $_POST['program'];
 
-    $stmt = $conn->prepare("UPDATE subjects SET title=?, sub_code=?, hours_per_week=?, type=?, semester=?, program=? WHERE id=?");
-    $stmt->bind_param("ssisssi", $title, $sub_code, $hours_per_week, $type, $semester, $program, $id);
+    $stmt = $conn->prepare("UPDATE subjects SET title=?, sub_code=?, short_name=?, hours_per_week=?, type=?, semester=?, program=? WHERE id=?");
+    $stmt->bind_param("sssisssi", $title, $sub_code, $short_name, $hours_per_week, $type, $semester, $program, $id);
 
     if ($stmt->execute()) {
         // Clear session-cached hours for this subject so timetable shows the updated value
@@ -126,10 +127,18 @@ $subject = $result->fetch_assoc();
                         value="<?php echo htmlspecialchars($subject['title']); ?>" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="sub_code">Subject Code</label>
-                    <input type="text" id="sub_code" name="sub_code"
-                        value="<?php echo htmlspecialchars($subject['sub_code']); ?>" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sub_code">Subject Code</label>
+                        <input type="text" id="sub_code" name="sub_code"
+                            value="<?php echo htmlspecialchars($subject['sub_code']); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="short_name">Short Code</label>
+                        <input type="text" id="short_name" name="short_name"
+                            value="<?php echo htmlspecialchars(isset($subject['short_name']) ? $subject['short_name'] : ''); ?>" placeholder="e.g. PCD, DSA" required>
+                    </div>
                 </div>
 
                 <div class="form-row">

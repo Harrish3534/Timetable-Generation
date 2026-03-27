@@ -523,10 +523,10 @@ if (isset($_POST['action']) && in_array($_POST['action'], ['next', 'previous', '
                         $type_lower = strtolower($sub['type']);
                         $title_lower = strtolower($sub['title']);
                         
-                        if (in_array($type_lower, ['common', 'allied', 'nme', 'non major elective'])) {
+                        if (in_array($type_lower, ['common', 'allied', 'nm', 'nme', 'non major elective'])) {
                             $is_no_staff_required = true;
                         }
-                        if (strpos($title_lower, 'nme') !== false || strpos($title_lower, 'non major elective') !== false) {
+                        if (strpos($title_lower, 'nme') !== false || strpos($title_lower, 'naan mudhalvan') !== false || strpos($title_lower, 'non major elective') !== false) {
                             $is_no_staff_required = true;
                         }
                         // 2nd M.Sc is Class Index 4
@@ -666,10 +666,10 @@ $default_no_staff_ids = [];
 foreach ($subjects as $sub) {
     $t = strtolower($sub['type']);
     $ttl = strtolower($sub['title']);
-    // Common, Allied, NME only — NOT NM (Naan Mudhalvan needs staff)
-    if (in_array($t, ['common', 'allied', 'nme', 'non major elective'])) {
+    // Common, Allied, NM, NME
+    if (in_array($t, ['common', 'allied', 'nm', 'nme', 'non major elective'])) {
         $default_no_staff_ids[] = strval($sub['id']);
-    } elseif (strpos($ttl, 'nme') !== false || strpos($ttl, 'non major elective') !== false) {
+    } elseif (strpos($ttl, 'nme') !== false || strpos($ttl, 'naan mudhalvan') !== false || strpos($ttl, 'non major elective') !== false) {
         $default_no_staff_ids[] = strval($sub['id']);
     } elseif (($t === 'project' || strpos($ttl, 'project') !== false) && $program === 'PG' && $current_index == 4) {
         $default_no_staff_ids[] = strval($sub['id']);
@@ -1320,6 +1320,50 @@ function getManualCount($subject_id, $shift, $class_index, $staff_index = null) 
             updateStaffDropdowns();
         }
 
+        /**
+         * After removing a split-staff slot, any remaining staff selects for this
+         * subject whose chosen staff no longer has enough hours are reset to empty.
+         */
+        function clearInvalidStaffSelections(subjectId, shift) {
+            // Collect all selects for this subject/shift
+            const prefix = shift ? `staff_${shift}_${subjectId}` : `staff_${subjectId}`;
+            document.querySelectorAll(`.staff-select`).forEach(select => {
+                if (!select.name.startsWith(prefix)) return;
+                if (!select.value) return;
+
+                const staffId = parseInt(select.value);
+                const requiredHours = getActualAllocationHours(select.name, subjectId, shift);
+
+                // Compute effective remaining hours for this staff
+                let tempHoursUsed = {};
+                let originalHoursUsed = {};
+
+                for (const key in originalPageAllocations) {
+                    const s = originalPageAllocations[key];
+                    if (!originalHoursUsed[s.staffId]) originalHoursUsed[s.staffId] = 0;
+                    originalHoursUsed[s.staffId] += getActualAllocationHours(key, s.subjectId, s.shift);
+                }
+                for (const key in currentAllocations) {
+                    if (key === select.name) continue;
+                    const s = currentAllocations[key];
+                    if (!tempHoursUsed[s.staffId]) tempHoursUsed[s.staffId] = 0;
+                    tempHoursUsed[s.staffId] += getActualAllocationHours(key, s.subjectId, s.shift);
+                }
+
+                const baseUsed      = (staffHoursData[staffId] && staffHoursData[staffId].used)  || 0;
+                const origPageHours = originalHoursUsed[staffId] || 0;
+                const curPageUsed   = tempHoursUsed[staffId]     || 0;
+                const totalUsed     = baseUsed - origPageHours + curPageUsed;
+                const remaining     = (staffHoursData[staffId] ? staffHoursData[staffId].max : 0) - totalUsed;
+
+                if (remaining < requiredHours) {
+                    // Staff can't cover the new (larger) hours — reset
+                    select.value = '';
+                    if (currentAllocations[select.name]) delete currentAllocations[select.name];
+                }
+            });
+        }
+
         function removeStaffAllocation(containerId, rowNum, subjectId, shift) {
             const row = document.getElementById(`staff-row-${containerId}-${rowNum}`);
             if (row) {
@@ -1335,6 +1379,9 @@ function getManualCount($subject_id, $shift, $class_index, $staff_index = null) 
                 } else {
                     updateSplitHoursInputs(subjectId, newCount, shift);
                 }
+
+                // Clear any remaining selects whose staff no longer has enough hours
+                clearInvalidStaffSelections(subjectId, shift);
                 updateStaffDropdowns();
             }
         }
@@ -1348,24 +1395,61 @@ function getManualCount($subject_id, $shift, $class_index, $staff_index = null) 
             const hours1 = Math.ceil(totalHours / 2);
             const hours2 = Math.floor(totalHours / 2);
 
+            const shiftArg = shift ? `'${shift}'` : 'null';
+            const shiftAttr = shift ? `data-shift="${shift}"` : '';
+
             hoursCell.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <div style="display: flex; align-items: center; gap: 5px;">
-                            <input type="number" name="${hoursInputName}_1" class="hours-input split-hours" data-subject-id="${subjectId}" ${shift ? `data-shift="${shift}"` : ''} value="${hours1}" min="0" max="30" onchange="updateSplitHoursTotal(${subjectId}, ${shift ? `'${shift}'` : 'null'})" required>
-                            <button type="submit" name="action" value="manual" class="btn-manual" onclick="return setManualAllocation(${subjectId}, ${shift ? `'${shift}'` : 'null'}, 1)">Manual</button>
+                            <input type="number" name="${hoursInputName}_1" class="hours-input split-hours" data-subject-id="${subjectId}" ${shiftAttr} value="${hours1}" min="0" max="30"
+                                oninput="autoBalanceSplitHours(${subjectId}, ${shiftArg}, 1)"
+                                onchange="updateSplitHoursTotal(${subjectId}, ${shiftArg})" required>
+                            <button type="submit" name="action" value="manual" class="btn-manual" onclick="return setManualAllocation(${subjectId}, ${shiftArg}, 1)">Manual</button>
                         </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <div style="display: flex; align-items: center; gap: 5px;">
-                            <input type="number" name="${hoursInputName}_2" class="hours-input split-hours" data-subject-id="${subjectId}" ${shift ? `data-shift="${shift}"` : ''} value="${hours2}" min="0" max="30" onchange="updateSplitHoursTotal(${subjectId}, ${shift ? `'${shift}'` : 'null'})" required>
-                            <button type="submit" name="action" value="manual" class="btn-manual" onclick="return setManualAllocation(${subjectId}, ${shift ? `'${shift}'` : 'null'}, 2)">Manual</button>
+                            <input type="number" name="${hoursInputName}_2" class="hours-input split-hours" data-subject-id="${subjectId}" ${shiftAttr} value="${hours2}" min="0" max="30"
+                                oninput="autoBalanceSplitHours(${subjectId}, ${shiftArg}, 2)"
+                                onchange="updateSplitHoursTotal(${subjectId}, ${shiftArg})" required>
+                            <button type="submit" name="action" value="manual" class="btn-manual" onclick="return setManualAllocation(${subjectId}, ${shiftArg}, 2)">Manual</button>
                         </div>
                     </div>
                 </div>
                 <input type="hidden" name="${hoursInputName}" value="${totalHours}">
             `;
             updateTotalHours();
+        }
+
+        /**
+         * Auto-balance: when user edits one split input (changedIndex = 1 or 2),
+         * recompute the other so they sum to the stored total.
+         * Only fires when there are exactly 2 splits.
+         */
+        function autoBalanceSplitHours(subjectId, shift, changedIndex) {
+            const hoursInputName = shift ? `hours_${shift}_${subjectId}` : `hours_${subjectId}`;
+            const hoursCell = document.querySelector(`[name="${hoursInputName}"]`).closest('td');
+            if (!hoursCell) return;
+
+            const splitInputs = hoursCell.querySelectorAll('.split-hours');
+            if (splitInputs.length !== 2) return;   // only auto-balance for exactly 2 splits
+
+            const hiddenInput = hoursCell.querySelector(`[name="${hoursInputName}"]`);
+            const total = parseInt(hiddenInput ? hiddenInput.value : 0) || 0;
+            if (total <= 0) return;
+
+            const changedInput = hoursCell.querySelector(`[name="${hoursInputName}_${changedIndex}"]`);
+            const otherIndex   = changedIndex === 1 ? 2 : 1;
+            const otherInput   = hoursCell.querySelector(`[name="${hoursInputName}_${otherIndex}"]`);
+            if (!changedInput || !otherInput) return;
+
+            const changedVal = parseInt(changedInput.value) || 0;
+            const newOther   = Math.max(0, total - changedVal);
+            otherInput.value = newOther;
+
+            updateTotalHours();
+            updateStaffDropdowns();
         }
 
         function restoreSingleHoursInput(subjectId, shift) {
@@ -1431,6 +1515,10 @@ function getManualCount($subject_id, $shift, $class_index, $staff_index = null) 
                 input.setAttribute('data-subject-id', subjectId);
                 if (shift) input.setAttribute('data-shift', shift);
                 input.value = hours; input.min = '0'; input.max = '30'; input.required = true;
+                // Auto-balance when exactly 2 slots, otherwise just update total
+                if (count === 2) {
+                    input.oninput  = function () { autoBalanceSplitHours(subjectId, shift, i); };
+                }
                 input.onchange = function () { updateSplitHoursTotal(subjectId, shift); };
 
                 const btn = document.createElement('button');

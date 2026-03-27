@@ -85,6 +85,7 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
         'saraswathi' => 4,
         'malathi' => 5,
         'balamurugan' => 6,
+        'buvaneswari' => 7,
         'buvaneshwari' => 7,
         'mahendran' => 8,
         'yuvaraj' => 9,

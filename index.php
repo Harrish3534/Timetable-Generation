@@ -1,3 +1,7 @@
+<?php
+// Start the session so we can grab error messages sent back from login.php
+session_start();
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -21,6 +25,17 @@
             cursor: pointer;
             color: #888;
         }
+        
+        /* Added a quick style for the error message */
+        .error-message {
+            color: #ff3333;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -28,6 +43,16 @@
     <div class="container">
         <div class="login-box">
             <h1>Staff Login</h1>
+            
+            <?php
+// If login.php sends back an error message via session, display it here
+if (isset($_SESSION['login_error'])) {
+    echo '<div class="error-message">' . htmlspecialchars($_SESSION['login_error']) . '</div>';
+    // Clear the error message so it doesn't show up again on a fresh page load
+    unset($_SESSION['login_error']);
+}
+?>
+
             <form action="Login/login.php" method="POST">
                 <div class="form-group">
                     <label for="username">Username</label>
@@ -45,26 +70,26 @@
             </form>
         </div>
     </div>
-</body>
-<script>
-    const passwordInput = document.getElementById('password');
-    const eyeOpenIcon = document.getElementById('eye-open');
-    const eyeCloseIcon = document.getElementById('eye-close');
 
-    eyeOpenIcon.addEventListener('click', () => {
-        passwordInput.type = 'text';
-        eyeOpenIcon.style.display = 'none';
-        eyeCloseIcon.style.display = 'inline';
-    });
+    <script>
+        const passwordInput = document.getElementById('password');
+        const eyeOpenIcon = document.getElementById('eye-open');
+        const eyeCloseIcon = document.getElementById('eye-close');
 
-    eyeCloseIcon.addEventListener('click', () => {
-        passwordInput.type = 'password';
+        eyeOpenIcon.addEventListener('click', () => {
+            passwordInput.type = 'text';
+            eyeOpenIcon.style.display = 'none';
+            eyeCloseIcon.style.display = 'inline';
+        });
+
+        eyeCloseIcon.addEventListener('click', () => {
+            passwordInput.type = 'password';
+            eyeCloseIcon.style.display = 'none';
+            eyeOpenIcon.style.display = 'inline';
+        });
+
+        // Initialize the icons' visibility
         eyeCloseIcon.style.display = 'none';
-        eyeOpenIcon.style.display = 'inline';
-    });
-
-    // Initialize the icons' visibility
-    eyeCloseIcon.style.display = 'none';
-</script>
-
+    </script>
+</body>
 </html>

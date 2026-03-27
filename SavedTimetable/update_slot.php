@@ -7,8 +7,12 @@ $conn = getConnection();
 $action = $_POST['action'] ?? '';
 
 // Function to get short name for subject
-function getShortName($title, $type, $semester = null)
+function getShortName($title, $type, $semester = null, $subject = null)
 {
+    if ($subject && !empty($subject['short_name'])) {
+        return strtoupper($subject['short_name']);
+    }
+
     if ($type === 'Allied')
         return 'ALLIED';
     if ($type === 'NME')
@@ -159,12 +163,19 @@ if ($action === 'swap') {
 
     // Automatically determine short name instead of relying on frontend logic
     if ($subject_id && $subject_title) {
-        // Fetch semester from db for accurate parsing
+        // Fetch semester and subject details from db for accurate parsing
         $semQuery = $conn->query("SELECT semester FROM saved_timetable_slots WHERE id = $slot_id");
         $slotRow = $semQuery->fetch_assoc();
         $sem = $slotRow ? $slotRow['semester'] : null;
         
-        $subject_short = getShortName($subject_title, $subject_type, $sem);
+        // Fetch subject details directly to get the defined short_name
+        $clean_sub_id = $conn->real_escape_string($subject_id);
+        // Handle split subjects (e.g., '14_1')
+        $base_id = (strpos($clean_sub_id, '_') !== false) ? explode('_', $clean_sub_id)[0] : $clean_sub_id;
+        $subQuery = $conn->query("SELECT short_name FROM subjects WHERE id = '$base_id'");
+        $subRow = $subQuery ? $subQuery->fetch_assoc() : null;
+
+        $subject_short = getShortName($subject_title, $subject_type, $sem, $subRow);
     } else {
         $subject_short = '';
     }
