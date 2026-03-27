@@ -1705,9 +1705,10 @@ function getManualCount($subject_id, $shift, $class_index, $staff_index = null) 
             <?php endif; ?>
         </div>
 
-        <form method="POST" action="timetable.php">
+        <form id="main-form" method="POST" action="timetable.php">
+            <input type="hidden" name="action" id="action-input" value="">
             <div class="action-buttons" style="margin-bottom: 20px;">
-                <button type="submit" name="action" value="reset" class="btn-reset" onclick="removeValidation()">🔄 Reset</button>
+                <button type="button" class="btn-reset" onclick="removeValidation(); document.getElementById('action-input').value='reset'; document.getElementById('main-form').submit();">🔄 Reset</button>
 
                 <?php if ($current_class_config['has_shifts']): ?>
                     <div style="display: flex; gap: 10px; align-items: center;">

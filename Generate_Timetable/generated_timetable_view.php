@@ -18,9 +18,40 @@ $generation_success = isset($_SESSION['generation_success']) ? $_SESSION['genera
 // Get collection info
 $collection_count = isset($_SESSION['timetable_collection']) ? count($_SESSION['timetable_collection']) : 0;
 $current_index = isset($_SESSION['timetable_index']) ? $_SESSION['timetable_index'] + 1 : 1;
+$last_gen_count = isset($_SESSION['last_gen_count']) ? $_SESSION['last_gen_count'] : null;
 
 $days = ['I DAY', 'II DAY', 'III DAY', 'IV DAY', 'V DAY', 'VI DAY'];
 $hours = ['I HOUR', 'II HOUR', 'III HOUR', 'IV HOUR', 'V HOUR'];
+
+$subject_short_names = [];
+$subject_short_res = $conn->query("SELECT id, short_name FROM subjects");
+if ($subject_short_res) {
+    while ($row = $subject_short_res->fetch_assoc()) {
+        $subject_short_names[(string) $row['id']] = strtoupper(trim((string) ($row['short_name'] ?? '')));
+    }
+}
+
+if (!empty($timetables)) {
+    foreach ($timetables as &$tt_data) {
+        if (empty($tt_data['timetable']) || !is_array($tt_data['timetable'])) {
+            continue;
+        }
+        foreach ($tt_data['timetable'] as &$day_hours) {
+            foreach ($day_hours as &$subject) {
+                if (!is_array($subject) || empty($subject['base_id'])) {
+                    continue;
+                }
+                $base_id = (string) $subject['base_id'];
+                if (!empty($subject_short_names[$base_id])) {
+                    $subject['short_name'] = $subject_short_names[$base_id];
+                }
+            }
+            unset($subject);
+        }
+        unset($day_hours);
+    }
+    unset($tt_data);
+}
 
 $has_timetable = !empty($timetables);
 
@@ -180,6 +211,9 @@ if ($has_timetable) {
             <button onclick="openSaveDialog()" class="btn btn-primary" style="background:#7c3aed; border-color:#7c3aed;">💾 Save Timetable</button>
             <button onclick="window.location.href='timetable.php?semester=<?php echo $semester_filter; ?>'"
                 class="btn btn-secondary">← Back to Setup</button>
+
+            <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>&cycle=-1'"
+                class="btn btn-secondary" style="background:#6b7280; border-color:#6b7280; color:white;">← View Previous Possibility</button>
             
             <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>&cycle=1'"
                 class="btn btn-secondary" style="background:#f59e0b; border-color:#f59e0b; color:white;">🔄 View Next Possibilities (<?php echo $current_index; ?>/<?php echo $collection_count; ?>)</button>
@@ -458,7 +492,13 @@ if ($has_timetable) {
         <div class="empty-state">
             <div class="empty-state-icon">📊</div>
             <h2>No Timetable Generated Yet</h2>
-            <p>You haven't generated a timetable in this session. Go to <strong>Class Timetable</strong> to allocate staff and generate your timetable.</p>
+            <p>
+                <?php if ($last_gen_count === 0): ?>
+                    A generation attempt was made, but no valid timetables could be found for the current constraints. Please review your staff allocations and subject hours.
+                <?php else: ?>
+                    You haven't generated a timetable in this session. Go to <strong>Class Timetable</strong> to allocate staff and generate your timetable.
+                <?php endif; ?>
+            </p>
             <a href="redirect_timetable.php" class="btn-go">
                 📅 Go to Class Timetable
             </a>

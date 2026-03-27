@@ -206,7 +206,7 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
         <a href="redirect_timetable.php" class="tab">
             <span class="tab-icon">📅</span> Class Timetable
         </a>
-        <a href="../Generated_Timetable/generated_timetable_view.php" class="tab active">
+        <a href="generated_timetable_view.php" class="tab active">
             <span class="tab-icon">📊</span> Generated Timetable
         </a>
         <a href="../SavedTimetable/saved_timetable.php" class="tab">
@@ -217,7 +217,7 @@ uksort($staff_schedules, function ($a, $b) use ($staff_info) {
     <div class="content">
         <div class="no-print" style="margin-bottom: 20px; display: flex; gap: 10px;">
             <button onclick="window.print()" class="btn btn-primary">🖨️ Print Timetables</button>
-            <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>'"
+            <button onclick="window.location.href='generated_timetable_view.php'"
                 class="btn btn-secondary">← Back</button>
             <button onclick="window.location.href='generate_timetable.php?semester=<?php echo $semester_filter; ?>'"
                 class="btn btn-secondary">🔄 Regenerate</button>
