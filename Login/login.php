@@ -4,6 +4,34 @@ $conn = getConnection();
 
 $error = null;
 
+function ensureLoginSchema(mysqli $conn): void
+{
+    $seededTruncatedHash = '$2y$10$DngEusYVyqE89F7x9o5UeeAMWG6lZLfLj5HVpaxk6Ki';
+    $fixedSeedHash = '$2y$10$Sa5EnEmT8soH4tDANju8tuZ1bnJ93/n0HTJAIadm7TB8GseQyjuJK';
+
+    // Bcrypt hashes need 60 characters, so older 50-char schema breaks login.
+    $conn->query("ALTER TABLE users MODIFY password VARCHAR(255) DEFAULT NULL");
+
+    $stmt = $conn->prepare("SELECT id, password FROM users WHERE username = ?");
+    $seedUser = 'csadmin';
+    $stmt->bind_param("s", $seedUser);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($user = $result->fetch_assoc()) {
+        if ($user['password'] === $seededTruncatedHash) {
+            $update = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $update->bind_param("si", $fixedSeedHash, $user['id']);
+            $update->execute();
+            $update->close();
+        }
+    }
+
+    $stmt->close();
+}
+
+ensureLoginSchema($conn);
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';

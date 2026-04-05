@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 27, 2026 at 06:57 PM
+-- Generation Time: Apr 05, 2026 at 03:51 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -29,8 +29,8 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `classes` (
   `id` int(11) NOT NULL,
-  `name` varchar(50) DEFAULT NULL,
-  `shift` varchar(50) DEFAULT NULL
+  `name` varchar(150) DEFAULT NULL,
+  `shift` varchar(150) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -1392,7 +1392,7 @@ INSERT INTO `timetable` (`id`, `class_id`, `semester`, `day_no`, `hour_no`, `sub
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `username` varchar(50) NOT NULL,
-  `password` varchar(50) DEFAULT NULL
+  `password` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -1400,7 +1400,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`) VALUES
-(1, 'csadmin', '$2y$10$DngEusYVyqE89F7x9o5UeeAMWG6lZLfLj5HVpaxk6Ki');
+(1, 'csadmin', '$2y$10$Sa5EnEmT8soH4tDANju8tuZ1bnJ93/n0HTJAIadm7TB8GseQyjuJK');
 
 --
 -- Indexes for dumped tables
@@ -1496,7 +1496,7 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
